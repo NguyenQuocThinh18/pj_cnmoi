@@ -23,9 +23,9 @@ function Login() {
       if (res.data.success) {
         const user = res.data.data;
         
-        // 1. Kiểm tra nếu chọn đăng nhập Admin mà tài khoản không phải Admin
-        if (isAdmin && user.role !== 'admin') {
-          alert("Tài khoản này không có quyền Quản trị viên, Thái ơi!");
+        // ĐÃ FIX: Cho phép CẢ ADMIN VÀ STAFF đăng nhập qua cổng này
+        if (isAdmin && user.role !== 'admin' && user.role !== 'staff') {
+          alert("Khu vực này chỉ dành cho Quản trị viên hoặc Nhân viên!");
           setLoading(false);
           return;
         }
@@ -34,10 +34,10 @@ function Login() {
         localStorage.setItem('token', res.data.token);
         localStorage.setItem('user', JSON.stringify(user));
 
-        alert(`Chào mừng ${isAdmin ? 'Quản trị viên' : ''} ${user.name} quay trở lại!`);
+        alert(`Chào mừng ${isAdmin ? (user.role === 'admin' ? 'Quản trị viên' : 'Nhân viên') : ''} ${user.name} quay trở lại!`);
 
-        // 3. ĐIỀU HƯỚNG THÔNG MINH
-        if (user.role === 'admin') {
+        // ĐÃ FIX: ĐIỀU HƯỚNG THÔNG MINH (Admin và Staff đều vào được Dashboard)
+        if (user.role === 'admin' || user.role === 'staff') {
           navigate('/admin'); // Vào thẳng trang quản trị
         } else {
           navigate('/'); // Về trang chủ

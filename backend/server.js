@@ -19,7 +19,7 @@ const blogRoutes = require('./routes/blogRoutes');
 const reviewRoutes = require('./routes/reviewRoutes'); 
 const categoryRoutes = require('./routes/categoryRoutes');
 const userRoutes = require('./routes/userRoutes');
-
+const rentalRoutes = require('./routes/rentalRoutes');
 // 👇 ĐÃ THÊM: Import Route Thanh toán VNPay
 const paymentRoutes = require('./routes/paymentRoutes'); 
 
@@ -49,7 +49,7 @@ app.use('/api/blogs', blogRoutes);
 app.use('/api/reviews', reviewRoutes); 
 app.use('/api/categories', categoryRoutes);
 app.use('/api/users', userRoutes);
-
+app.use('/api/rentals', rentalRoutes);
 // 👇 ĐÃ THÊM: Khai báo đường dẫn API cho VNPay
 app.use('/api/payment', paymentRoutes);
 

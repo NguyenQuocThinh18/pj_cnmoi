@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import axios from 'axios';
+import API_BASE_URL from '../utils/apiConfig';
 
 // Toàn bộ giao diện và hiệu ứng nằm trong 1 file duy nhất
 const Pricing = () => {
@@ -13,12 +15,26 @@ const Pricing = () => {
     setShowModal(true);
   };
 
-  // Hàm xử lý khi bấm gửi form
-  const handleSubmit = (e) => {
+  // ĐÃ FIX: Hàm xử lý gửi form gọi API thực tế
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    alert(`🎉 Cảm ơn ${formData.name}!\nYêu cầu đặt [${selectedCar}] vào ngày ${formData.date} đã được ghi nhận.\nChúng tôi sẽ gọi lại cho bạn qua SĐT ${formData.phone} trong ít phút tới.`);
-    setShowModal(false); // Ẩn form đi
-    setFormData({ name: "", phone: "", date: "" }); // Xóa dữ liệu cũ
+    try {
+      const payload = {
+        name: formData.name,
+        phone: formData.phone,
+        date: formData.date,
+        carType: selectedCar
+      };
+      // Gọi API lưu vào Database
+      await axios.post(`${API_BASE_URL}/api/rentals`, payload);
+      
+      alert(`🎉 Cảm ơn ${formData.name}!\nYêu cầu đặt [${selectedCar}] vào ngày ${formData.date} đã được ghi nhận.\nChúng tôi sẽ gọi lại cho bạn qua SĐT ${formData.phone} trong ít phút tới.`);
+      
+      setShowModal(false); // Ẩn form đi
+      setFormData({ name: "", phone: "", date: "" }); // Xóa dữ liệu cũ
+    } catch (error) {
+      alert("Có lỗi xảy ra, vui lòng thử lại sau!");
+    }
   };
 
   // --- 2. PHẦN GIAO DIỆN ---
@@ -165,7 +181,6 @@ const Pricing = () => {
               <li className="feature-item"><span className="check-icon">✓</span> Miễn phí khăn lạnh, nước suối</li>
               <li className="feature-item"><span className="check-icon">✓</span> Tài xế nhiệt tình, đúng giờ</li>
             </ul>
-            {/* THÊM SỰ KIỆN ONCLICK VÀO NÚT NÀY */}
             <button className="cta-button" onClick={() => handleOpenBooking("Xe 4 - 7 Chỗ")}>LIÊN HỆ ĐẶT XE</button>
           </div>
 
@@ -183,7 +198,6 @@ const Pricing = () => {
               <li className="feature-item"><span className="check-icon">✓</span> Tặng nón du lịch cao cấp</li>
               <li className="feature-item"><span className="check-icon">✓</span> Phù hợp đoàn gia đình, công ty</li>
             </ul>
-            {/* THÊM SỰ KIỆN ONCLICK VÀO NÚT NÀY */}
             <button className="cta-button" onClick={() => handleOpenBooking("Xe 16 Chỗ")}>ĐẶT XE NGAY</button>
           </div>
 
@@ -200,7 +214,6 @@ const Pricing = () => {
               <li className="feature-item"><span className="check-icon">✓</span> Hầm hành lý siêu rộng</li>
               <li className="feature-item"><span className="check-icon">✓</span> Chuyên Teambuilding đoàn lớn</li>
             </ul>
-            {/* THÊM SỰ KIỆN ONCLICK VÀO NÚT NÀY */}
             <button className="cta-button" onClick={() => handleOpenBooking("Xe 29 - 45 Chỗ")}>LIÊN HỆ BÁO GIÁ</button>
           </div>
 
@@ -211,7 +224,7 @@ const Pricing = () => {
         </p>
       </div>
 
-      {/* --- 3. GIAO DIỆN MODAL ĐẶT XE (Sẽ hiện ra khi bấm nút) --- */}
+      {/* --- 3. GIAO DIỆN MODAL ĐẶT XE --- */}
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="booking-modal" onClick={(e) => e.stopPropagation()}>

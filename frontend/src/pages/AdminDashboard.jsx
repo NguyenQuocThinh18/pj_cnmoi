@@ -3,8 +3,8 @@ import axios from 'axios';
 import API_BASE_URL from '../utils/apiConfig';
 import { resolveImageUrl } from '../../public/assets/img/index/imagePath';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend } from 'recharts';
-import Swal from 'sweetalert2'; // IMPORT SWEETALERT2
-import * as XLSX from 'xlsx'; // IMPORT THƯ VIỆN XUẤT EXCEL
+import Swal from 'sweetalert2'; 
+import * as XLSX from 'xlsx'; 
 
 function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('overview');
@@ -13,6 +13,7 @@ function AdminDashboard() {
   const [users, setUsers] = useState([]);
   const [blogs, setBlogs] = useState([]);
   const [reviews, setReviews] = useState([]);
+  const [rentals, setRentals] = useState([]); // ĐÃ THÊM: STATE CHO THUÊ XE
   const [loading, setLoading] = useState(true);
   
   const [filterType, setFilterType] = useState('all'); 
@@ -65,7 +66,8 @@ function AdminDashboard() {
     { id: 'overview', icon: 'speedometer2', label: 'Tổng quan', roles: ['admin', 'staff'] }, 
     { id: 'tours', icon: 'map', label: 'Lịch trình Tour', roles: ['admin', 'staff'] }, 
     { id: 'bookings', icon: 'receipt', label: 'Quản lý Đoàn & Đơn', roles: ['admin', 'staff'] }, 
-    { id: 'blogs', icon: 'journal-text', label: 'Quản lý Blog', roles: ['admin'] }, 
+    { id: 'rentals', icon: 'car-front-fill', label: 'Yêu cầu Thuê xe', roles: ['admin', 'staff'] }, // ĐÃ THÊM: MENU THUÊ XE
+    { id: 'blogs', icon: 'journal-text', label: 'Quản lý Blog', roles: ['admin', 'staff'] }, 
     { id: 'reviews', icon: 'star-half', label: 'Bình luận', roles: ['admin'] }, 
     { id: 'users', icon: 'people', label: 'Người dùng & Phân quyền', roles: ['admin'] }, 
     { id: 'revenue', icon: 'graph-up-arrow', label: 'Báo Cáo Thống Kê', roles: ['admin'] }
@@ -93,13 +95,15 @@ function AdminDashboard() {
     setLoading(true);
     try {
       const cfg = getAuthHeaders();
-      const [tourRes, bookRes, userRes, blogRes, reviewRes, catRes] = await Promise.all([
+      // ĐÃ THÊM: GET API RENTALS VÀO MẢNG
+      const [tourRes, bookRes, userRes, blogRes, reviewRes, catRes, rentalRes] = await Promise.all([
         axios.get(`${API_BASE_URL}/api/tours`),
         axios.get(`${API_BASE_URL}/api/bookings`),
         axios.get(`${API_BASE_URL}/api/users`, cfg).catch(() => ({ data: { success: true, data: [] } })),
         axios.get(`${API_BASE_URL}/api/blogs`),
         axios.get(`${API_BASE_URL}/api/reviews/all`).catch(() => ({ data: { success: true, data: [] } })),
-        axios.get(`${API_BASE_URL}/api/categories`).catch(() => ({ data: { success: true, data: [] } }))
+        axios.get(`${API_BASE_URL}/api/categories`).catch(() => ({ data: { success: true, data: [] } })),
+        axios.get(`${API_BASE_URL}/api/rentals`, cfg).catch(() => ({ data: { success: true, data: [] } }))
       ]);
 
       setTours(tourRes.data.success ? tourRes.data.data : (tourRes.data || []));
@@ -108,6 +112,7 @@ function AdminDashboard() {
       setBlogs(blogRes.data.success ? blogRes.data.data : []);
       setReviews(reviewRes.data?.data || []);
       setAvailableCategories(catRes.data.success ? catRes.data.data.map(cat => cat.name) : []);
+      setRentals(rentalRes.data?.data || []); // ĐÃ THÊM: GẮN DỮ LIỆU RENTALS
     } catch (error) {
       console.error("Lỗi tải dữ liệu:", error);
     } finally {
@@ -128,19 +133,19 @@ function AdminDashboard() {
   }, [bookings, filterType, searchTerm]);
 
   const filteredTours = useMemo(() => {
-    return tours.filter(t => t.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                             t.city.toLowerCase().includes(searchTerm.toLowerCase()));
+    return tours.filter(t => (t.title || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+                             (t.city || '').toLowerCase().includes(searchTerm.toLowerCase()));
   }, [tours, searchTerm]);
 
   const filteredUsers = useMemo(() => {
     return users.filter(u => 
-      u.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      u.email?.toLowerCase().includes(searchTerm.toLowerCase())
+      (u.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+      (u.email || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [users, searchTerm]);
 
   const filteredBlogs = useMemo(() => {
-    return blogs.filter(b => b.title.toLowerCase().includes(searchTerm.toLowerCase()));
+    return blogs.filter(b => (b.title || '').toLowerCase().includes(searchTerm.toLowerCase()));
   }, [blogs, searchTerm]);
 
   const revenueData = useMemo(() => {
@@ -190,7 +195,7 @@ function AdminDashboard() {
     }
 
     if (searchTerm) {
-      list = list.filter(b => b._id.toLowerCase().includes(searchTerm.toLowerCase()) || b.tourId?.title?.toLowerCase().includes(searchTerm.toLowerCase()));
+      list = list.filter(b => b._id.toLowerCase().includes(searchTerm.toLowerCase()) || (b.tourId?.title || '').toLowerCase().includes(searchTerm.toLowerCase()));
     }
 
     return list;
@@ -208,8 +213,8 @@ function AdminDashboard() {
   const exportUsersToExcel = () => {
     const dataToExport = filteredUsers.map((u, i) => ({
       "STT": i + 1,
-      "Họ Tên": u.name,
-      "Email": u.email,
+      "Họ Tên": u.name || '',
+      "Email": u.email || '',
       "Số Điện Thoại": u.phone || 'N/A',
       "Quyền Hạn": u.role === 'admin' ? 'Quản trị viên' : u.role === 'staff' ? 'Nhân viên' : 'Khách hàng'
     }));
@@ -219,11 +224,11 @@ function AdminDashboard() {
   const exportToursToExcel = () => {
     const dataToExport = filteredTours.map((t, i) => ({
       "STT": i + 1,
-      "Tên Tour": t.title,
-      "Thành Phố": t.city,
-      "Giá Bán (VNĐ)": t.price,
-      "Thời Lượng": t.duration,
-      "Danh Mục": t.category,
+      "Tên Tour": t.title || '',
+      "Thành Phố": t.city || '',
+      "Giá Bán (VNĐ)": t.price || 0,
+      "Thời Lượng": t.duration || '',
+      "Danh Mục": t.category || '',
       "Trạng Thái": t.featured ? 'Nổi bật' : 'Bình thường'
     }));
     downloadExcel(dataToExport, "Danh_Sach_Tour");
@@ -232,13 +237,13 @@ function AdminDashboard() {
   const exportBookingsToExcel = () => {
     const dataToExport = filteredBookings.map((b, i) => ({
       "STT": i + 1,
-      "Mã Đơn": '#' + b._id.substring(18).toUpperCase(),
+      "Mã Đơn": '#' + String(b._id).substring(18).toUpperCase(),
       "Ngày Đặt": new Date(b.createdAt).toLocaleDateString('vi-VN'),
       "Khách Hàng": b.userId?.name || b.name || 'Khách vãng lai',
       "Số Điện Thoại": b.userId?.phone || b.phone || 'N/A',
       "Tên Tour": b.tourId?.title || 'Tour đã xóa',
-      "Số Lượng Khách": b.guestSize,
-      "Tổng Tiền (VNĐ)": b.totalPrice,
+      "Số Lượng Khách": b.guestSize || 1,
+      "Tổng Tiền (VNĐ)": b.totalPrice || 0,
       "Trạng Thái": b.status === 'paid' ? 'Đã Thanh Toán' : b.status === 'cancelled' ? 'Đã Hủy' : 'Chờ Xử Lý'
     }));
     downloadExcel(dataToExport, "Lich_Su_Don_Dat_Tour");
@@ -247,12 +252,12 @@ function AdminDashboard() {
   const exportRevenueToExcel = () => {
     const dataToExport = filteredRevenueBookings.map((b, i) => ({
       "STT": i + 1,
-      "Mã Đơn": '#' + b._id.substring(18).toUpperCase(),
+      "Mã Đơn": '#' + String(b._id).substring(18).toUpperCase(),
       "Ngày Thanh Toán": new Date(b.createdAt).toLocaleDateString('vi-VN'),
       "Tên Khách Hàng": b.userId?.name || b.name || 'Khách vãng lai',
       "SĐT Liên Hệ": b.userId?.phone || b.phone || 'N/A',
       "Tour Đã Đặt": b.tourId?.title || 'Tour đã xóa',
-      "Doanh Thu Mang Về (VNĐ)": b.totalPrice,
+      "Doanh Thu Mang Về (VNĐ)": b.totalPrice || 0,
       "Hình Thức": b.paymentMethod === 'vnpay' ? 'Cổng VNPay' : (b.paymentMethod === 'bank' ? 'Chuyển Khoản' : 'Tiền Mặt')
     }));
     downloadExcel(dataToExport, "Bao_Cao_Doanh_Thu_Chi_Tiet");
@@ -301,7 +306,7 @@ function AdminDashboard() {
   };
 
   const handleDeleteTour = async (id) => {
-    if (userRole !== 'admin') return showNotification('Chỉ Admin mới có quyền xóa Tour!', 'danger');
+    if (userRole !== 'admin' && userRole !== 'staff') return showNotification('Chỉ Admin hoặc Nhân viên mới có quyền xóa Tour!', 'danger');
     Swal.fire({ title: 'Xóa Tour này?', text: "Tour sẽ biến mất khỏi hệ thống!", icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Xóa' }).then(async (result) => {
       if (result.isConfirmed) {
         const cfg = getAuthHeaders();
@@ -344,9 +349,72 @@ function AdminDashboard() {
     });
   };
 
+  // ĐÃ THÊM: HÀM CẬP NHẬT TRẠNG THÁI THUÊ XE
+  const handleUpdateRental = async (id, currentStatus) => {
+    const newStatus = currentStatus === 'pending' ? 'processed' : 'pending';
+    try {
+      const cfg = getAuthHeaders();
+      await axios.put(`${API_BASE_URL}/api/rentals/${id}`, { status: newStatus }, cfg);
+      fetchData();
+      showNotification('Cập nhật trạng thái thành công', 'success');
+    } catch (error) { showNotification('Lỗi cập nhật', 'danger'); }
+  };
+
+  // ĐÃ THÊM: HÀM XÓA YÊU CẦU THUÊ XE
+  const handleDeleteRental = async (id) => {
+    Swal.fire({ title: 'Xóa yêu cầu này?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Xóa' }).then(async (result) => {
+      if (result.isConfirmed) {
+        try {
+          const cfg = getAuthHeaders();
+          await axios.delete(`${API_BASE_URL}/api/rentals/${id}`, cfg);
+          fetchData();
+          showNotification('Đã xóa yêu cầu', 'success');
+        } catch (e) { showNotification('Lỗi xóa', 'danger'); }
+      }
+    });
+  };
+
   const handleInputChange = (e) => { setFormData(prev => ({ ...prev, [e.target.name]: e.target.value })); };
-  const resetForm = () => { setFormData({ _id: '', title: '', city: '', price: '', duration: '', image: '', description: '', availableSeats: 20, startDate: '', endDate: '', category: '', featured: false }); setIsEditing(false); setShowForm(false); };
-  const handleEditClick = (tour) => { setFormData({...tour}); setIsEditing(true); setShowForm(true); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+  
+  const resetForm = () => { 
+    setFormData({ _id: '', title: '', city: '', price: '', duration: '', image: '', description: '', availableSeats: 20, startDate: '', endDate: '', category: '', featured: false }); 
+    setIsEditing(false); 
+    setShowForm(false); 
+  };
+  
+  const handleEditClick = (tour) => { 
+    setFormData({
+      _id: tour._id || '',
+      title: tour.title || '',
+      city: tour.city || '',
+      price: tour.price || '',
+      duration: tour.duration || '',
+      image: tour.image || '',
+      description: tour.description || '',
+      availableSeats: tour.availableSeats || 0,
+      startDate: tour.startDate || '',
+      endDate: tour.endDate || '',
+      category: tour.category || '',
+      featured: tour.featured || false
+    }); 
+    setIsEditing(true); 
+    setShowForm(true); 
+    window.scrollTo({ top: 0, behavior: 'smooth' }); 
+  };
+
+  const handleEditBlogClick = (b) => {
+    setBlogFormData({
+      _id: b._id || '',
+      title: b.title || '',
+      content: b.content || '',
+      image: b.image || '',
+      category: b.category || 'Cẩm Nang Du Lịch',
+      featured: b.featured || false
+    });
+    setIsEditingBlog(true);
+    setShowBlogForm(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' }); 
+  };
 
   const handleStaffBookingInputChange = (e) => {
     const { name, value } = e.target;
@@ -393,8 +461,25 @@ function AdminDashboard() {
   };
 
   const handleUserInputChange = (e) => setUserFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
-  const resetUserForm = () => { setUserFormData({ _id: '', name: '', email: '', phone: '', password: '', role: 'user' }); setIsEditingUser(false); setShowUserForm(false); };
-  const handleEditUserClick = (user) => { setUserFormData({ _id: user._id, name: user.name, email: user.email, phone: user.phone || '', password: '', role: user.role || 'user' }); setIsEditingUser(true); setShowUserForm(true); };
+  
+  const resetUserForm = () => { 
+    setUserFormData({ _id: '', name: '', email: '', phone: '', password: '', role: 'user' }); 
+    setIsEditingUser(false); 
+    setShowUserForm(false); 
+  };
+  
+  const handleEditUserClick = (user) => { 
+    setUserFormData({ 
+      _id: user._id || '', 
+      name: user.name || '', 
+      email: user.email || '', 
+      phone: user.phone || '', 
+      password: '', 
+      role: user.role || 'user' 
+    }); 
+    setIsEditingUser(true); 
+    setShowUserForm(true); 
+  };
   
   const handleSubmitUser = async (e) => {
     e.preventDefault();
@@ -449,21 +534,17 @@ function AdminDashboard() {
     return { totalSeats, bookedSeats, pendingSeats, canceledSeats, remainingSeats: Math.max(totalSeats - bookedSeats, 0), totalBookings: tourBookings.length };
   }, [selectedTour, bookings]);
 
-  // GIAO DIỆN SKELETON LOADING (HIỂN THỊ TRONG LÚC CHỜ CALL API)
   if (loading) return (
     <div className="bg-light pb-5" style={{ minHeight: '100vh' }}>
       <div className="container-fluid px-4 mt-4">
         <div className="row g-4">
-          {/* Skeleton cho Sidebar bên trái */}
           <div className="col-12 col-lg-3 col-xl-2">
             <div className="skeleton shadow-sm" style={{ height: '80vh', borderRadius: '15px' }}></div>
           </div>
           
-          {/* Skeleton cho Nội dung chính bên phải */}
           <div className="col-12 col-lg-9 col-xl-10">
             <div className="skeleton mb-4" style={{ height: '40px', width: '30%', borderRadius: '8px' }}></div>
             
-            {/* Skeleton cho 3 cái thẻ thống kê */}
             <div className="row g-4 mb-4">
               {[1, 2, 3].map(i => (
                 <div key={i} className="col-md-4">
@@ -472,7 +553,6 @@ function AdminDashboard() {
               ))}
             </div>
             
-            {/* Skeleton cho bảng biểu đồ/danh sách */}
             <div className="row g-4">
               <div className="col-md-6">
                 <div className="skeleton shadow-sm" style={{ height: '350px', borderRadius: '15px' }}></div>
@@ -575,7 +655,7 @@ function AdminDashboard() {
                 <div className="d-flex justify-content-between align-items-center mb-4">
                   <h4 className="fw-bold mb-0">{userRole === 'admin' ? 'Quản lý Tour' : 'Xem Lịch trình Tour'}</h4>
                   <div className="d-flex gap-2">
-                    {userRole === 'admin' && (
+                    {(userRole === 'admin' || userRole === 'staff') && (
                       <>
                         <button className="btn btn-outline-success rounded-pill px-3 shadow-sm fw-bold" onClick={exportToursToExcel}>
                           <i className="bi bi-file-earmark-excel-fill me-1"></i> Xuất Excel
@@ -588,24 +668,23 @@ function AdminDashboard() {
                   </div>
                 </div>
                 
-                {/* Form Tour */}
-                {showForm && userRole === 'admin' && (
+                {showForm && (userRole === 'admin' || userRole === 'staff') && (
                   <div className="card border-0 shadow-sm p-4 mb-4 rounded-4 border-top border-info border-4">
                     <h5 className="fw-bold mb-3">{isEditing ? 'Cập nhật Tour' : 'Thêm Tour mới'}</h5>
                     <form onSubmit={handleSubmitTour}>
                       <div className="row g-3">
-                        <div className="col-md-6"><label className="small fw-bold">Tên Tour</label><input type="text" className="form-control" name="title" value={formData.title} onChange={handleInputChange} required /></div>
-                        <div className="col-md-6"><label className="small fw-bold">Thành phố</label><input type="text" className="form-control" name="city" value={formData.city} onChange={handleInputChange} required /></div>
-                        <div className="col-md-3"><label className="small fw-bold">Giá (VNĐ)</label><input type="number" className="form-control" name="price" value={formData.price} onChange={handleInputChange} required /></div>
-                        <div className="col-md-3"><label className="small fw-bold">Thời lượng tour</label><input type="text" className="form-control" name="duration" value={formData.duration} onChange={handleInputChange} placeholder="VD: 3 ngày 2 đêm" required /></div>
-                        <div className="col-md-3"><label className="small fw-bold">Ghế trống</label><input type="number" className="form-control" name="availableSeats" value={formData.availableSeats} onChange={handleInputChange} required /></div>
-                        <div className="col-md-3"><label className="small fw-bold">Danh mục</label><select className="form-select" name="category" value={formData.category} onChange={handleInputChange} required><option value="">-- Chọn danh mục --</option>{availableCategories.map((cat) => (<option key={cat} value={cat}>{cat}</option>))}</select></div>
-                        <div className="col-md-6"><label className="small fw-bold">Ngày khởi hành</label><input type="text" className="form-control" name="startDate" value={formData.startDate} onChange={handleInputChange} placeholder="VD: Thứ 7 hàng tuần" required /></div>
-                        <div className="col-md-6"><label className="small fw-bold">Ngày kết thúc</label><input type="text" className="form-control" name="endDate" value={formData.endDate} onChange={handleInputChange} placeholder="VD: Chủ nhật hàng tuần" required /></div>
+                        <div className="col-md-6"><label className="small fw-bold">Tên Tour</label><input type="text" className="form-control" name="title" value={formData.title || ''} onChange={handleInputChange} required /></div>
+                        <div className="col-md-6"><label className="small fw-bold">Thành phố</label><input type="text" className="form-control" name="city" value={formData.city || ''} onChange={handleInputChange} required /></div>
+                        <div className="col-md-3"><label className="small fw-bold">Giá (VNĐ)</label><input type="number" className="form-control" name="price" value={formData.price || ''} onChange={handleInputChange} required /></div>
+                        <div className="col-md-3"><label className="small fw-bold">Thời lượng tour</label><input type="text" className="form-control" name="duration" value={formData.duration || ''} onChange={handleInputChange} placeholder="VD: 3 ngày 2 đêm" required /></div>
+                        <div className="col-md-3"><label className="small fw-bold">Ghế trống</label><input type="number" className="form-control" name="availableSeats" value={formData.availableSeats || ''} onChange={handleInputChange} required /></div>
+                        <div className="col-md-3"><label className="small fw-bold">Danh mục</label><select className="form-select" name="category" value={formData.category || ''} onChange={handleInputChange} required><option value="">-- Chọn danh mục --</option>{availableCategories.map((cat) => (<option key={cat} value={cat}>{cat}</option>))}</select></div>
+                        <div className="col-md-6"><label className="small fw-bold">Ngày khởi hành</label><input type="text" className="form-control" name="startDate" value={formData.startDate || ''} onChange={handleInputChange} placeholder="VD: Thứ 7 hàng tuần" required /></div>
+                        <div className="col-md-6"><label className="small fw-bold">Ngày kết thúc</label><input type="text" className="form-control" name="endDate" value={formData.endDate || ''} onChange={handleInputChange} placeholder="VD: Chủ nhật hàng tuần" required /></div>
                         <div className="col-md-12">
                           <label className="small fw-bold">Chọn Ảnh</label>
                           <div className="d-flex gap-2">
-                            <input type="text" className="form-control" name="image" value={formData.image} onChange={handleInputChange} placeholder="VD: tour-1.jpg hoặc /assets/img/index/tour-1.jpg" required />
+                            <input type="text" className="form-control" name="image" value={formData.image || ''} onChange={handleInputChange} placeholder="VD: tour-1.jpg hoặc /assets/img/index/tour-1.jpg" required />
                             <button type="button" className="btn btn-outline-info rounded-pill px-3" onClick={() => setShowImagePicker(!showImagePicker)}><i className="bi bi-image"></i> Chọn</button>
                           </div>
                           {formData.image && <div className="mt-2"><img src={formData.image.includes('/') ? resolveImageUrl(formData.image) : `/assets/img/index/${formData.image}`} alt="Preview" className="rounded" style={{width:'100px', height:'70px', objectFit:'cover'}} onError={(e) => {e.target.style.display='none'}} /></div>}
@@ -630,7 +709,7 @@ function AdminDashboard() {
                             </div>
                           </div>
                         )}
-                        <div className="col-12"><label className="small fw-bold">Mô tả Tour</label><textarea className="form-control" name="description" rows="4" value={formData.description} onChange={handleInputChange} required></textarea></div>
+                        <div className="col-12"><label className="small fw-bold">Mô tả Tour</label><textarea className="form-control" name="description" rows="4" value={formData.description || ''} onChange={handleInputChange} required></textarea></div>
                       </div>
                       <div className="d-flex gap-2 mt-4">
                         <button type="submit" className="btn btn-info text-white rounded-pill px-5 fw-bold flex-grow-1">{isEditing ? 'Cập nhật' : 'Thêm mới'}</button>
@@ -647,18 +726,18 @@ function AdminDashboard() {
                       {filteredTours.map(t => (
                         <tr key={t._id}>
                           <td><img src={resolveImageUrl(t.image)} className="rounded" style={{width:'50px', height:'35px', objectFit:'cover'}} /></td>
-                          <td className="fw-bold">{t.title}</td>
+                          <td className="fw-bold">{t.title || 'Tour không tên'}</td>
                           <td className="text-muted small">
-                            Khởi hành: <strong className="text-dark">{t.startDate}</strong><br/>
+                            Khởi hành: <strong className="text-dark">{t.startDate || '---'}</strong><br/>
                             Kết thúc: <strong className="text-dark">{t.endDate || '---'}</strong><br/>
-                            Chỗ trống: <strong className="text-danger">{t.availableSeats}</strong> ghế
+                            Chỗ trống: <strong className="text-danger">{t.availableSeats || 0}</strong> ghế
                           </td>
                           <td>
                             <span className={`badge ${t.availableSeats > 0 ? 'bg-success' : 'bg-danger'}`}>{t.availableSeats > 0 ? 'Còn chỗ' : 'Đã Đầy'}</span>
                           </td>
                           <td className="text-center">
                             <button className="btn btn-sm btn-info text-white rounded-pill me-2" onClick={() => handleViewTour(t)} title="Xem chi tiết tour"><i className="bi bi-eye"></i> Xem</button>
-                            {userRole === 'admin' && (
+                            {(userRole === 'admin' || userRole === 'staff') && (
                               <>
                                 <button className="btn btn-sm btn-outline-primary me-2" onClick={() => handleEditClick(t)}><i className="bi bi-pencil"></i></button>
                                 <button className="btn btn-sm btn-outline-danger" onClick={() => handleDeleteTour(t._id)}><i className="bi bi-trash"></i></button>
@@ -684,24 +763,24 @@ function AdminDashboard() {
                     <form className="row g-3" onSubmit={handleStaffBookingSubmit}>
                       <div className="col-md-6">
                         <label className="small fw-bold">Chọn Tour</label>
-                        <select className="form-select" name="tourId" value={staffBookingForm.tourId} onChange={handleStaffBookingInputChange} required>
+                        <select className="form-select" name="tourId" value={staffBookingForm.tourId || ''} onChange={handleStaffBookingInputChange} required>
                           <option value="">-- Chọn tour --</option>
                           {tours.map(t => (
-                            <option key={t._id} value={t._id}>{t.title} - {t.city} ({Number(t.price).toLocaleString()}đ)</option>
+                            <option key={t._id} value={t._id}>{t.title} - {t.city} ({Number(t.price || 0).toLocaleString()}đ)</option>
                           ))}
                         </select>
                       </div>
                       <div className="col-md-3">
                         <label className="small fw-bold">Số khách</label>
-                        <input type="number" className="form-control" name="guestSize" min="1" value={staffBookingForm.guestSize} onChange={handleStaffBookingInputChange} required />
+                        <input type="number" className="form-control" name="guestSize" min="1" value={staffBookingForm.guestSize || ''} onChange={handleStaffBookingInputChange} required />
                       </div>
                       <div className="col-md-3">
                         <label className="small fw-bold">Tổng tiền (VNĐ)</label>
-                        <input type="text" readOnly className="form-control" value={staffBookingForm.totalPrice ? staffBookingForm.totalPrice.toLocaleString() + ' đ' : ''} />
+                        <input type="text" readOnly className="form-control" value={staffBookingForm.totalPrice ? staffBookingForm.totalPrice.toLocaleString() + ' đ' : '0 đ'} />
                       </div>
-                      <div className="col-md-6"><label className="small fw-bold">Tên khách</label><input type="text" className="form-control" name="name" value={staffBookingForm.name} onChange={handleStaffBookingInputChange} required /></div>
-                      <div className="col-md-3"><label className="small fw-bold">Điện thoại</label><input type="text" className="form-control" name="phone" value={staffBookingForm.phone} onChange={handleStaffBookingInputChange} required /></div>
-                      <div className="col-md-3"><label className="small fw-bold">Email</label><input type="email" className="form-control" name="email" value={staffBookingForm.email} onChange={handleStaffBookingInputChange} /></div>
+                      <div className="col-md-6"><label className="small fw-bold">Tên khách</label><input type="text" className="form-control" name="name" value={staffBookingForm.name || ''} onChange={handleStaffBookingInputChange} required /></div>
+                      <div className="col-md-3"><label className="small fw-bold">Điện thoại</label><input type="text" className="form-control" name="phone" value={staffBookingForm.phone || ''} onChange={handleStaffBookingInputChange} required /></div>
+                      <div className="col-md-3"><label className="small fw-bold">Email</label><input type="email" className="form-control" name="email" value={staffBookingForm.email || ''} onChange={handleStaffBookingInputChange} /></div>
                       <div className="col-12 d-flex gap-2 justify-content-end">
                         <button type="button" className="btn btn-outline-secondary rounded-pill" onClick={resetStaffBookingForm}>Xóa dữ liệu</button>
                         <button type="submit" className="btn btn-info text-white rounded-pill px-4">Tạo đơn</button>
@@ -723,13 +802,13 @@ function AdminDashboard() {
                     <tbody>
                       {filteredBookings.map(b => (
                         <tr key={b._id}>
-                          <td className="fw-bold">#{b._id.substring(18).toUpperCase()}</td>
+                          <td className="fw-bold">#{String(b._id).substring(18).toUpperCase()}</td>
                           <td>
                             <div className="fw-bold text-primary">{b.userId?.name || b.name || 'Khách vãng lai'}</div>
                             <div className="text-muted" style={{fontSize: '11px'}}><i className="bi bi-telephone-fill me-1"></i>{b.userId?.phone || b.phone || 'N/A'}</div>
                           </td>
-                          <td className="text-truncate" style={{maxWidth: '180px'}}>{b.tourId?.title}</td>
-                          <td className="fw-bold text-danger">{b.totalPrice?.toLocaleString()}đ</td>
+                          <td className="text-truncate" style={{maxWidth: '180px'}}>{b.tourId?.title || 'Tour đã bị xóa hoặc không rõ'}</td>
+                          <td className="fw-bold text-danger">{Number(b.totalPrice || 0).toLocaleString()}đ</td>
                           <td><span className={`badge rounded-pill px-3 py-2 ${b.status === 'paid' ? 'bg-success' : b.status === 'cancelled' ? 'bg-danger' : 'bg-warning text-dark'}`}>{b.status === 'paid' ? 'Đã Thanh Toán' : b.status === 'cancelled' ? 'Đã hủy' : 'Chờ xử lý'}</span></td>
                           
                           <td className="text-center">
@@ -772,20 +851,20 @@ function AdminDashboard() {
                     <h5 className="fw-bold mb-3">{isEditingUser ? 'Cập nhật Quyền' : 'Cấp Tài khoản mới'}</h5>
                     <form onSubmit={handleSubmitUser}>
                       <div className="row g-3">
-                        <div className="col-md-6"><label className="small fw-bold">Họ tên</label><input type="text" className="form-control" name="name" value={userFormData.name} onChange={handleUserInputChange} required /></div>
-                        <div className="col-md-6"><label className="small fw-bold">Email</label><input type="email" className="form-control" name="email" value={userFormData.email} onChange={handleUserInputChange} disabled={isEditingUser} required /></div>
-                        <div className="col-md-6"><label className="small fw-bold">Số điện thoại</label><input type="text" className="form-control" name="phone" value={userFormData.phone} onChange={handleUserInputChange} /></div>
+                        <div className="col-md-6"><label className="small fw-bold">Họ tên</label><input type="text" className="form-control" name="name" value={userFormData.name || ''} onChange={handleUserInputChange} required /></div>
+                        <div className="col-md-6"><label className="small fw-bold">Email</label><input type="email" className="form-control" name="email" value={userFormData.email || ''} onChange={handleUserInputChange} disabled={isEditingUser} required /></div>
+                        <div className="col-md-6"><label className="small fw-bold">Số điện thoại</label><input type="text" className="form-control" name="phone" value={userFormData.phone || ''} onChange={handleUserInputChange} /></div>
                         
                         <div className="col-md-3">
                           <label className="small fw-bold">Phân quyền</label>
-                          <select className="form-select border-info" name="role" value={userFormData.role} onChange={handleUserInputChange}>
+                          <select className="form-select border-info" name="role" value={userFormData.role || 'user'} onChange={handleUserInputChange}>
                             <option value="user">Khách hàng (User)</option>
                             <option value="staff">Nhân viên (Staff)</option>
                             <option value="admin">Quản trị viên (Admin)</option>
                           </select>
                         </div>
 
-                        {!isEditingUser && <div className="col-md-3"><label className="small fw-bold">Mật khẩu</label><input type="password" className="form-control" name="password" value={userFormData.password} onChange={handleUserInputChange} required /></div>}
+                        {!isEditingUser && <div className="col-md-3"><label className="small fw-bold">Mật khẩu</label><input type="password" className="form-control" name="password" value={userFormData.password || ''} onChange={handleUserInputChange} required /></div>}
                       </div>
                       <button type="submit" className="btn btn-info text-white mt-4 rounded-pill px-5 fw-bold shadow-sm">{isEditingUser ? 'Cập nhật' : 'Khởi tạo Tài khoản'}</button>
                     </form>
@@ -799,8 +878,8 @@ function AdminDashboard() {
                       {filteredUsers.map((u, i) => (
                         <tr key={u._id}>
                           <td className="text-muted">{i + 1}</td>
-                          <td className="fw-bold">{u.name}</td>
-                          <td className="small">{u.email}</td>
+                          <td className="fw-bold">{u.name || 'N/A'}</td>
+                          <td className="small">{u.email || 'N/A'}</td>
                           <td>
                             <span className={`badge px-3 py-2 rounded-pill ${u.role === 'admin' ? 'bg-danger' : u.role === 'staff' ? 'bg-primary' : 'bg-secondary'}`}>
                               {u.role === 'admin' ? 'Admin' : u.role === 'staff' ? 'Nhân viên' : 'Khách hàng'}
@@ -819,7 +898,7 @@ function AdminDashboard() {
             )}
 
             {/* QUẢN LÝ BLOG */}
-            {activeTab === 'blogs' && userRole === 'admin' && (
+            {activeTab === 'blogs' && (userRole === 'admin' || userRole === 'staff') && (
               <div className="animation-fade-in">
                 <div className="d-flex justify-content-between align-items-center mb-4">
                   <h4 className="fw-bold mb-0">Quản lý bài viết Blog</h4>
@@ -831,12 +910,12 @@ function AdminDashboard() {
                   <div className="card border-0 shadow-sm p-4 mb-4 rounded-4 border-top border-info border-4">
                     <form onSubmit={handleSubmitBlog}>
                       <div className="row g-3">
-                        <div className="col-md-8"><label className="small fw-bold">Tiêu đề bài viết</label><input type="text" className="form-control" name="title" value={blogFormData.title} onChange={handleBlogInputChange} required /></div>
-                        <div className="col-md-4"><label className="small fw-bold">Danh mục</label><select className="form-select" name="category" value={blogFormData.category} onChange={handleBlogInputChange}><option value="Cẩm Nang Du Lịch">Cẩm Nang Du Lịch</option><option value="Kinh nghiệm">Kinh nghiệm</option><option value="Tin tức">Tin tức</option></select></div>
+                        <div className="col-md-8"><label className="small fw-bold">Tiêu đề bài viết</label><input type="text" className="form-control" name="title" value={blogFormData.title || ''} onChange={handleBlogInputChange} required /></div>
+                        <div className="col-md-4"><label className="small fw-bold">Danh mục</label><select className="form-select" name="category" value={blogFormData.category || ''} onChange={handleBlogInputChange}><option value="Cẩm Nang Du Lịch">Cẩm Nang Du Lịch</option><option value="Kinh nghiệm">Kinh nghiệm</option><option value="Tin tức">Tin tức</option></select></div>
                         <div className="col-md-12">
                           <label className="small fw-bold">Chọn Ảnh Bìa</label>
                           <div className="d-flex gap-2">
-                            <input type="text" className="form-control" name="image" value={blogFormData.image} onChange={handleBlogInputChange} placeholder="/assets/img/index/ten-anh.jpg" required />
+                            <input type="text" className="form-control" name="image" value={blogFormData.image || ''} onChange={handleBlogInputChange} placeholder="/assets/img/index/ten-anh.jpg" required />
                             <button type="button" className="btn btn-outline-info rounded-pill px-3" onClick={() => setShowImagePicker(!showImagePicker)}><i className="bi bi-image"></i> Chọn</button>
                           </div>
                           {blogFormData.image && <div className="mt-2"><img src={blogFormData.image} alt="Preview" className="rounded" style={{width:'100px', height:'70px', objectFit:'cover'}} /></div>}
@@ -861,7 +940,7 @@ function AdminDashboard() {
                             </div>
                           </div>
                         )}
-                        <div className="col-12"><label className="small fw-bold">Nội dung bài viết</label><textarea className="form-control" name="content" rows="5" value={blogFormData.content} onChange={handleBlogInputChange} required></textarea></div>
+                        <div className="col-12"><label className="small fw-bold">Nội dung bài viết</label><textarea className="form-control" name="content" rows="5" value={blogFormData.content || ''} onChange={handleBlogInputChange} required></textarea></div>
                       </div>
                       <button type="submit" className="btn btn-info text-white w-100 mt-3 rounded-pill fw-bold">ĐĂNG BÀI</button>
                     </form>
@@ -874,11 +953,11 @@ function AdminDashboard() {
                       {filteredBlogs.map(b => (
                         <tr key={b._id}>
                           <td><img src={b.image} className="rounded" style={{width:'50px', height:'35px', objectFit:'cover'}} /></td>
-                          <td className="fw-bold text-truncate" style={{maxWidth:'300px'}}>{b.title}</td>
-                          <td><span className="badge bg-light text-dark">{b.category}</span></td>
-                          <td>{new Date(b.createdAt).toLocaleDateString('vi-VN')}</td>
+                          <td className="fw-bold text-truncate" style={{maxWidth:'300px'}}>{b.title || 'Bài viết không tên'}</td>
+                          <td><span className="badge bg-light text-dark">{b.category || 'Không rõ'}</span></td>
+                          <td>{b.createdAt ? new Date(b.createdAt).toLocaleDateString('vi-VN') : '---'}</td>
                           <td className="text-center">
-                            <button className="btn btn-sm btn-outline-primary me-2" onClick={() => {setBlogFormData(b); setIsEditingBlog(true); setShowBlogForm(true);}}><i className="bi bi-pencil"></i></button>
+                            <button className="btn btn-sm btn-outline-primary me-2" onClick={() => handleEditBlogClick(b)}><i className="bi bi-pencil"></i></button>
                             <button className="btn btn-sm btn-outline-danger" onClick={() => handleDeleteBlog(b._id)}><i className="bi bi-trash"></i></button>
                           </td>
                         </tr>
@@ -899,17 +978,54 @@ function AdminDashboard() {
                     <tbody>
                       {reviews.map(r => (
                         <tr key={r._id}>
-                          <td><strong>{r.userId?.name}</strong></td>
-                          <td className="small">{r.tourId?.title || r.blogId?.title || 'Không rõ'}</td>
-                          <td><span className="text-warning fw-bold">{r.rating} <i className="bi bi-star-fill"></i></span></td>
-                          <td className="small text-muted">{r.comment}</td>
-                          <td style={{fontSize:'12px'}}>{new Date(r.createdAt).toLocaleDateString('vi-VN')}</td>
+                          <td><strong>{r.userId?.name || 'Ẩn danh'}</strong></td>
+                          <td className="small">{r.tourId?.title || r.blogId?.title || 'Đã bị xóa'}</td>
+                          <td><span className="text-warning fw-bold">{r.rating || 5} <i className="bi bi-star-fill"></i></span></td>
+                          <td className="small text-muted">{r.comment || ''}</td>
+                          <td style={{fontSize:'12px'}}>{r.createdAt ? new Date(r.createdAt).toLocaleDateString('vi-VN') : '---'}</td>
                           <td className="text-center">
                             <button className="btn btn-sm btn-danger rounded-pill" onClick={() => handleDeleteReview(r._id)}><i className="bi bi-trash"></i> Xóa</button>
                           </td>
                         </tr>
                       ))}
                       {reviews.length === 0 && <tr><td colSpan="6" className="text-center py-4 text-muted">Chưa có bình luận nào để quản lý.</td></tr>}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* ĐÃ THÊM: GIAO DIỆN QUẢN LÝ YÊU CẦU THUÊ XE */}
+            {activeTab === 'rentals' && (userRole === 'admin' || userRole === 'staff') && (
+              <div className="animation-fade-in card border-0 shadow-sm rounded-4 p-4">
+                <h4 className="fw-bold mb-4"><i className="bi bi-car-front text-info me-2"></i>Quản lý Yêu cầu Thuê xe</h4>
+                <div className="table-responsive">
+                  <table className="table table-hover align-middle mb-0">
+                    <thead className="table-light"><tr><th>NGÀY GỬI</th><th>KHÁCH HÀNG</th><th>DÒNG XE</th><th>NGÀY ĐI</th><th>TRẠNG THÁI</th><th className="text-center">HÀNH ĐỘNG</th></tr></thead>
+                    <tbody>
+                      {rentals.map(r => (
+                        <tr key={r._id}>
+                          <td className="small text-muted">{new Date(r.createdAt).toLocaleDateString('vi-VN')}</td>
+                          <td>
+                            <div className="fw-bold text-dark">{r.name}</div>
+                            <div className="small text-muted"><i className="bi bi-telephone-fill me-1"></i>{r.phone}</div>
+                          </td>
+                          <td className="fw-bold text-primary">{r.carType}</td>
+                          <td className="text-danger fw-bold">{r.date}</td>
+                          <td>
+                            <span className={`badge rounded-pill px-3 py-2 ${r.status === 'processed' ? 'bg-success' : 'bg-warning text-dark'}`}>
+                              {r.status === 'processed' ? 'Đã liên hệ' : 'Chờ gọi điện'}
+                            </span>
+                          </td>
+                          <td className="text-center">
+                            <button className={`btn btn-sm me-2 rounded-circle ${r.status === 'processed' ? 'btn-outline-secondary' : 'btn-success'}`} onClick={() => handleUpdateRental(r._id, r.status)} title="Đổi trạng thái">
+                              <i className="bi bi-check2-all"></i>
+                            </button>
+                            <button className="btn btn-sm btn-outline-danger rounded-circle" onClick={() => handleDeleteRental(r._id)}><i className="bi bi-trash"></i></button>
+                          </td>
+                        </tr>
+                      ))}
+                      {rentals.length === 0 && <tr><td colSpan="6" className="text-center py-4 text-muted">Chưa có yêu cầu thuê xe nào.</td></tr>}
                     </tbody>
                   </table>
                 </div>
@@ -934,7 +1050,6 @@ function AdminDashboard() {
 
                 <div className="d-flex justify-content-between align-items-center mb-4">
                   <h4 className="fw-bold mb-0 text-dark"><i className="bi bi-graph-up-arrow text-primary me-2"></i>Báo Cáo Doanh Thu</h4>
-                  {/* NÚT XUẤT EXCEL DOANH THU */}
                   <button className="btn btn-success fw-bold shadow-sm rounded-pill px-4" onClick={exportRevenueToExcel}>
                     <i className="bi bi-file-earmark-excel-fill me-2"></i> Xuất Báo Cáo Excel
                   </button>
@@ -979,7 +1094,7 @@ function AdminDashboard() {
                     <tbody>
                       {filteredRevenueBookings.map(b => (
                         <tr key={b._id}>
-                          <td className="fw-bold text-secondary">#{b._id.substring(18).toUpperCase()}</td>
+                          <td className="fw-bold text-secondary">#{String(b._id).substring(18).toUpperCase()}</td>
                           <td>{new Date(b.createdAt).toLocaleDateString('vi-VN')}</td>
                           <td className="fw-bold text-truncate" style={{maxWidth: '200px'}}>{b.tourId?.title || <span className="text-muted fst-italic">Tour đã xóa</span>}</td>
                           <td>{b.userId?.name || b.name || 'Khách vãng lai'}</td>
@@ -1049,7 +1164,7 @@ function AdminDashboard() {
               <button className="btn-close btn-close-white" onClick={() => setSelectedBooking(null)}></button>
             </div>
             <div className="p-4">
-              <div className="row mb-3"><div className="col-5 text-muted small">Mã đơn:</div><div className="col-7 fw-bold">#{selectedBooking._id.substring(18).toUpperCase()}</div></div>
+              <div className="row mb-3"><div className="col-5 text-muted small">Mã đơn:</div><div className="col-7 fw-bold">#{String(selectedBooking._id).substring(18).toUpperCase()}</div></div>
               <div className="row mb-3"><div className="col-5 text-muted small">Tên Khách/Trưởng đoàn:</div><div className="col-7 fw-bold text-primary">{selectedBooking.userId?.name || selectedBooking.name || 'Khách vãng lai'}</div></div>
               <div className="row mb-3"><div className="col-5 text-muted small">Số điện thoại liên hệ:</div><div className="col-7 fw-bold text-dark">{selectedBooking.userId?.phone || selectedBooking.phone || 'Chưa cập nhật'}</div></div>
               <div className="row mb-3"><div className="col-5 text-muted small">Lịch trình Tour:</div><div className="col-7 fw-bold">{selectedBooking.tourId?.title || 'Tour đã bị xóa'}</div></div>

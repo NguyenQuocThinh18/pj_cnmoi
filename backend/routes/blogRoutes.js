@@ -1,5 +1,7 @@
 const express = require('express');
 const router = express.Router();
+// Import thêm middleware phân quyền
+const { verifyAdminOrStaff } = require('../middleware/verifyToken');
 const { 
     getAllBlogs, 
     getBlogById, 
@@ -15,10 +17,10 @@ router.get('/', getAllBlogs);
 // Lấy chi tiết một bài viết theo ID (Dùng cho trang BlogDetail)
 router.get('/:id', getBlogById); 
 
-// --- CÁC ĐƯỜNG DẪN CẦN QUYỀN ADMIN (Dành cho Quản trị viên) ---
+// --- CÁC ĐƯỜNG DẪN CẦN QUYỀN (Dành cho Quản trị viên & Nhân viên) ---
 // Thêm mới, cập nhật và xóa bài viết
-router.post('/', createBlog);
-router.put('/:id', updateBlog);
-router.delete('/:id', deleteBlog);
+router.post('/', verifyAdminOrStaff, createBlog);
+router.put('/:id', verifyAdminOrStaff, updateBlog);
+router.delete('/:id', verifyAdminOrStaff, deleteBlog);
 
 module.exports = router;
