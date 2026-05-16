@@ -1,19 +1,44 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import API_BASE_URL from '../utils/apiConfig';
+// Bổ sung Swal để hiện thông báo đẹp mắt hơn thay vì dùng alert() mặc định
+import Swal from 'sweetalert2';
 
 const Pricing = () => {
   // --- 1. PHẦN LOGIC XỬ LÝ SỰ KIỆN ---
   const [showModal, setShowModal] = useState(false);
   const [selectedCar, setSelectedCar] = useState("");
   
-  // ĐÃ NÂNG CẤP: Bổ sung các trường dữ liệu thực tế sát đời thực
+  // State lưu trữ form đặt xe
   const [formData, setFormData] = useState({ 
     name: "", phone: "", email: "", date: "", endDate: "", destination: "", rentalType: "driver" 
   });
 
-  const handleOpenBooking = (carType) => {
-    setSelectedCar(carType);
+  // ⚡ TÍNH NĂNG MỚI: State chứa danh sách xe thật từ Database
+  const [cars, setCars] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // ⚡ TÍNH NĂNG MỚI: Tự động gọi API lấy dữ liệu kho xe ngay khi mở trang Bảng Giá
+  useEffect(() => {
+    const fetchCars = async () => {
+      try {
+        const response = await axios.get(`${API_BASE_URL}/api/cars`);
+        if (response.data.success) {
+          // Chỉ lấy những xe đang có trạng thái "Sẵn sàng" (available) cho khách thuê
+          const availableCars = response.data.data.filter(car => car.status === 'available');
+          setCars(availableCars);
+        }
+      } catch (error) {
+        console.error("Lỗi lấy danh sách xe:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchCars();
+  }, []);
+
+  const handleOpenBooking = (carName) => {
+    setSelectedCar(carName);
     setShowModal(true);
   };
 
@@ -33,12 +58,17 @@ const Pricing = () => {
 
       await axios.post(`${API_BASE_URL}/api/rentals`, payload);
       
-      alert(`🎉 Cảm ơn ${formData.name}!\nYêu cầu thuê [${selectedCar}] đi [${formData.destination}] đã được tiếp nhận.\nChúng tôi đã gửi email xác nhận lộ trình về thư điện tử và sẽ gọi điện cho bạn qua hotline ${formData.phone} ngay lập tức!`);
+      // Dùng SweetAlert2 thông báo cho chuyên nghiệp
+      Swal.fire({
+        icon: 'success',
+        title: 'Đăng ký thành công!',
+        text: `Yêu cầu thuê [${selectedCar}] đi [${formData.destination}] đã được tiếp nhận. Chuyên viên sẽ gọi cho bạn qua số ${formData.phone} ngay lập tức!`
+      });
       
       setShowModal(false); 
       setFormData({ name: "", phone: "", email: "", date: "", endDate: "", destination: "", rentalType: "driver" }); 
     } catch (error) {
-      alert("Có lỗi xảy ra trong quá trình truyền dữ liệu xe, vui lòng thử lại sau!");
+      Swal.fire('Lỗi', 'Có lỗi xảy ra trong quá trình gửi yêu cầu, vui lòng thử lại sau!', 'error');
     }
   };
 
@@ -79,25 +109,26 @@ const Pricing = () => {
           padding: 6px 20px; border-radius: 50px; font-size: 14px; font-weight: 700;
           box-shadow: 0 4px 12px rgba(225, 29, 72, 0.3);
         }
-        .card-type { font-size: 1.5rem; font-weight: 700; color: #334155; margin-bottom: 20px; }
-        .price-value { margin-bottom: 30px; }
-        .price-value .amount { font-size: 3rem; font-weight: 800; color: #0ea5e9; }
+        .card-type { font-size: 1.5rem; font-weight: 700; color: #334155; margin-bottom: 15px; }
+        .price-value { margin-bottom: 25px; }
+        .price-value .amount { font-size: 2.5rem; font-weight: 800; color: #0ea5e9; }
         .price-value .unit { color: #64748b; font-size: 1rem; }
-        .feature-list { list-style: none; padding: 0; margin: 0 0 40px 0; text-align: left; flex-grow: 1; }
-        .feature-item { display: flex; align-items: center; margin-bottom: 15px; color: #475569; font-size: 1.05rem; }
+        .feature-list { list-style: none; padding: 0; margin: 0 0 30px 0; text-align: left; flex-grow: 1; }
+        .feature-item { display: flex; align-items: flex-start; margin-bottom: 12px; color: #475569; font-size: 1.05rem; }
         .check-icon {
           width: 22px; height: 22px; background: #f0fdf4; color: #22c55e;
           border-radius: 50%; display: flex; align-items: center; justify-content: center;
-          margin-right: 12px; font-size: 14px; flex-shrink: 0;
+          margin-right: 12px; font-size: 14px; flex-shrink: 0; margin-top: 3px;
         }
         .cta-button {
           width: 100%; padding: 16px; border-radius: 16px; border: 2px solid #0ea5e9;
           background: transparent; color: #0ea5e9; font-size: 1.1rem; font-weight: 700;
-          cursor: pointer; transition: all 0.3s;
+          cursor: pointer; transition: all 0.3s; margin-top: auto;
         }
         .price-card.popular .cta-button { background: #0ea5e9; color: white; }
         .price-card:hover .cta-button { background: #0ea5e9; color: white; box-shadow: 0 10px 15px -3px rgba(14, 165, 233, 0.3); }
         .note-text { margin-top: 50px; color: #94a3b8; font-style: italic; text-align: center; }
+        .car-image-preview { width: 100%; height: 180px; object-fit: cover; border-radius: 16px; margin-bottom: 20px; }
         @media (max-width: 768px) { .price-card.popular { transform: scale(1); } .main-title { font-size: 2rem; } }
 
         /* --- CSS MODAL ĐẶT XE ĐÃ ĐƯỢC TỐI ƯU GIAO DIỆN RỘNG RÃI --- */
@@ -149,67 +180,75 @@ const Pricing = () => {
           </p>
         </div>
 
-        <div className="pricing-container">
-          {/* Xe 4-7 Chỗ */}
-          <div className="price-card">
-            <h3 className="card-type">Xe 4 - 7 Chỗ</h3>
-            <div className="price-value">
-              <span className="amount">800k</span>
-              <span className="unit"> / ngày</span>
-            </div>
-            <ul className="feature-list">
-              <li className="feature-item"><span className="check-icon">✓</span> Xe Vios, Xpander, Innova đời mới</li>
-              <li className="feature-item"><span className="check-icon">✓</span> Tùy chọn tự lái hoặc kèm tài xế</li>
-              <li className="feature-item"><span className="check-icon">✓</span> Miễn phí khăn lạnh, nước suối</li>
-              <li className="feature-item"><span className="check-icon">✓</span> Hỗ trợ lộ trình đi tỉnh tối ưu</li>
-            </ul>
-            <button className="cta-button" onClick={() => handleOpenBooking("Xe 4 - 7 Chỗ")}>LIÊN HỆ ĐẶT XE</button>
+        {/* ⚡ ĐÃ NÂNG CẤP: HIỂN THỊ DANH SÁCH XE TỰ ĐỘNG BẰNG HÀM MAP DỰA VÀO DATABASE */}
+        {loading ? (
+          <div className="text-center py-5">
+            <div className="spinner-border text-info" role="status"></div>
+            <p className="mt-3 text-muted">Đang tải danh sách xe...</p>
           </div>
+        ) : cars.length === 0 ? (
+          <div className="text-center py-5 text-muted">
+            <h4>Hiện tại kho xe đang trống hoặc các xe đang bảo trì.</h4>
+            <p>Vui lòng quay lại sau nhé!</p>
+          </div>
+        ) : (
+          <div className="pricing-container">
+            {cars.map((car, index) => (
+              // Tự động gắn class "popular" cho chiếc xe thứ 2 (index 1) để nó nổi bật lên giống giao diện cũ
+              <div className={`price-card ${index === 1 ? 'popular' : ''}`} key={car._id}>
+                {index === 1 && <div className="hot-tag">🔥 Phổ biến nhất</div>}
+                
+                {/* 🖼️ Load ảnh từ DB (Nếu không có ảnh sẽ dùng ảnh ô tô mặc định) */}
+                <img 
+                  src={car.image || "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?w=500"} 
+                  alt={car.name} 
+                  className="car-image-preview shadow-sm"
+                  onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?w=500" }}
+                />
 
-          {/* Xe 16 Chỗ */}
-          <div className="price-card popular">
-            <div className="hot-tag">🔥 Phổ biến nhất</div>
-            <h3 className="card-type">Xe 16 Chỗ</h3>
-            <div className="price-value">
-              <span className="amount">1.5Tr</span>
-              <span className="unit"> / ngày</span>
-            </div>
-            <ul className="feature-list">
-              <li className="feature-item"><span className="check-icon">✓</span> <b>Ford Transit, Hyundai Solati</b></li>
-              <li className="feature-item"><span className="check-icon">✓</span> Ghế ngả cao cấp, cực rộng</li>
-              <li className="feature-item"><span className="check-icon">✓</span> Tặng nón du lịch cao cấp</li>
-              <li className="feature-item"><span className="check-icon">✓</span> Phù hợp đoàn gia đình, công ty</li>
-            </ul>
-            <button className="cta-button" onClick={() => handleOpenBooking("Xe 16 Chỗ")}>ĐẶT XE NGAY</button>
+                <h3 className="card-type">{car.name}</h3>
+                
+                <div className="price-value">
+                  <span className="amount">{car.pricePerDay?.toLocaleString('vi-VN')}đ</span>
+                  <span className="unit"> / ngày</span>
+                </div>
+                
+                <ul className="feature-list">
+                  <li className="feature-item">
+                    <span className="check-icon">✓</span> Phân khúc: <strong>{car.carType} ({car.seats} Chỗ)</strong>
+                  </li>
+                  <li className="feature-item">
+                    <span className="check-icon">✓</span> Tùy chọn tự lái hoặc kèm tài xế
+                  </li>
+                  {car.description && (
+                    <li className="feature-item">
+                      <span className="check-icon">✓</span> {car.description}
+                    </li>
+                  )}
+                  {car.manufacturer && (
+                    <li className="feature-item">
+                      <span className="check-icon">✓</span> Hãng sản xuất: {car.manufacturer}
+                    </li>
+                  )}
+                </ul>
+                
+                {/* Khi bấm gọi tên xe thật truyền vào form */}
+                <button className="cta-button" onClick={() => handleOpenBooking(car.name)}>ĐẶT XE NGAY</button>
+              </div>
+            ))}
           </div>
-
-          {/* Xe 29-45 Chỗ */}
-          <div className="price-card">
-            <h3 className="card-type">Xe 29 - 45 Chỗ</h3>
-            <div className="price-value">
-              <span className="amount">2.8Tr</span>
-              <span className="unit"> / ngày</span>
-            </div>
-            <ul className="feature-list">
-              <li className="feature-item"><span className="check-icon">✓</span> Dàn xe Universe đời mới nhất</li>
-              <li className="feature-item"><span className="check-icon">✓</span> Hệ thống Karaoke giải trí</li>
-              <li className="feature-item"><span className="check-icon">✓</span> Hầm hành lý siêu rộng</li>
-              <li className="feature-item"><span className="check-icon">✓</span> Chuyên Teambuilding đoàn lớn</li>
-            </ul>
-            <button className="cta-button" onClick={() => handleOpenBooking("Xe 29 - 45 Chỗ")}>LIÊN HỆ BÁO GIÁ</button>
-          </div>
-        </div>
+        )}
 
         <p className="note-text">* Lưu ý: Giá có thể thay đổi tùy vào lộ trình và thời điểm lễ Tết.</p>
       </div>
 
-      {/* --- ĐA NÂNG CẤP GIAO DIỆN FORM ĐẶT XE MỚI --- */}
+      {/* --- GIAO DIỆN MODAL ĐẶT XE MỚI ĐÃ CHUẨN --- */}
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="booking-modal" onClick={(e) => e.stopPropagation()}>
             <button className="close-btn" onClick={() => setShowModal(false)}>&times;</button>
             <h2 style={{ color: '#0ea5e9', marginBottom: '5px', marginTop: 0 }}>Xác nhận phiếu thuê</h2>
-            <p style={{ color: '#64748b', marginBottom: '20px' }}>Loại xe lựa chọn: <b>{selectedCar}</b></p>
+            <p style={{ color: '#64748b', marginBottom: '20px' }}>Loại xe lựa chọn: <b className="text-dark">{selectedCar}</b></p>
             
             <form onSubmit={handleSubmit}>
               <div className="form-grid-2">
@@ -230,7 +269,7 @@ const Pricing = () => {
 
               <div className="form-group full-width">
                 <label>Lộ trình di chuyển / Điểm đến mong muốn *</label>
-                <input type="text" required placeholder="VD: Đi Vũng Tàu 2 ngày 1 đêm, Đi nội thành..." value={formData.destination} onChange={(e) => setFormData({...formData, destination: e.target.value})} />
+                <input type="text" required placeholder="VD: Đi Vũng Tàu 2 ngày 1 đêm..." value={formData.destination} onChange={(e) => setFormData({...formData, destination: e.target.value})} />
               </div>
 
               <div className="form-grid-2">
