@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
+import API_BASE_URL from '../utils/apiConfig';
 import { resolveImageUrl } from '../utils/imagePath'; // ĐÃ THÊM: Import hàm fix ảnh
 
 function Account() {
@@ -114,14 +115,17 @@ function Account() {
                                 {booking.tourId?.title || 'Tour này đã ngưng phục vụ'}
                               </h5>
                               
-                              {/* ĐÃ FIX: Logic 3 trạng thái màu sắc cực chuẩn */}
+                              {/* ĐÃ FIX: Logic trạng thái xử lý cả pending và pending_confirmation */}
                               {booking.status === 'paid' && (
                                 <span className="badge rounded-pill px-3 py-2 bg-success shadow-sm">Đã thanh toán</span>
                               )}
-                              {booking.status === 'pending_confirmation' && (
+                              {(booking.status === 'pending' || booking.status === 'pending_confirmation') && (
                                 <span className="badge rounded-pill px-3 py-2 bg-primary shadow-sm">Chờ xác nhận</span>
                               )}
-                              {(booking.status !== 'paid' && booking.status !== 'pending_confirmation') && (
+                              {booking.status === 'cancelled' && (
+                                <span className="badge rounded-pill px-3 py-2 bg-danger shadow-sm">Đã hủy</span>
+                              )}
+                              {booking.status !== 'paid' && booking.status !== 'pending' && booking.status !== 'pending_confirmation' && booking.status !== 'cancelled' && (
                                 <span className="badge rounded-pill px-3 py-2 bg-warning text-dark shadow-sm">Chờ thanh toán</span>
                               )}
                             </div>
@@ -134,10 +138,9 @@ function Account() {
                             <div className="d-flex justify-content-between align-items-center mt-3 pt-2 border-top border-light">
                               <span className="text-danger fw-bold fs-5">{booking.totalPrice?.toLocaleString('vi-VN')} ₫</span>
                               
-                              {/* Chỉ hiện nút Thanh Toán Ngay nếu status là "Chờ thanh toán" */}
-                              {(booking.status !== 'paid' && booking.status !== 'pending_confirmation') && (
+                              {(booking.status !== 'paid' && booking.status !== 'cancelled') && (
                                 <Link to={`/payment/${booking._id}`} className="btn btn-sm btn-danger rounded-pill px-3 fw-bold shadow-sm hover-scale">
-                                  Thanh toán ngay <i className="bi bi-arrow-right-short"></i>
+                                  {booking.status === 'pending' || booking.status === 'pending_confirmation' ? 'Tiếp tục thanh toán' : 'Thanh toán ngay'} <i className="bi bi-arrow-right-short"></i>
                                 </Link>
                               )}
                             </div>

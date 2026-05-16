@@ -13,7 +13,7 @@ function AdminDashboard() {
   const [users, setUsers] = useState([]);
   const [blogs, setBlogs] = useState([]);
   const [reviews, setReviews] = useState([]);
-  const [rentals, setRentals] = useState([]); // ĐÃ THÊM: STATE CHO THUÊ XE
+  const [rentals, setRentals] = useState([]); 
   const [loading, setLoading] = useState(true);
   
   const [filterType, setFilterType] = useState('all'); 
@@ -37,16 +37,7 @@ function AdminDashboard() {
   const [isEditingUser, setIsEditingUser] = useState(false);
   const [userFormData, setUserFormData] = useState({ _id: '', name: '', email: '', phone: '', password: '', role: 'user' });
 
-  const [showImagePicker, setShowImagePicker] = useState(false);
-  const [availableImages, setAvailableImages] = useState([
-    'tour-1.jpg', 'tour-2.jpg', 'tour-3.jpg', 'tour-4.jpg', 'tour-5.jpg', 'tour-6.jpg',
-    'ha-noi-en-370x370.jpg', 'Moc-Chau-370x370.jpg', 'ninh-binh-370x370.jpg',
-    'CamPha_QuanNinh_Carousel.jpg', 'co-hong-da-lat-760x370.jpg', 'Vinh-ha-long.jpg',
-    'anh-cau-rong-da-nang-phun-lua-dep_111044330.jpg', 'Bà-Nà-2.jpg', 'cau-vang-ba-na-hills.jpg',
-    'han-quoc-370x370.jpg', 'tour-phansipan.png', 'about.png'
-  ]);
   const [availableCategories, setAvailableCategories] = useState([]);
-
   const [userRole, setUserRole] = useState('user');
 
   useEffect(() => {
@@ -66,7 +57,7 @@ function AdminDashboard() {
     { id: 'overview', icon: 'speedometer2', label: 'Tổng quan', roles: ['admin', 'staff'] }, 
     { id: 'tours', icon: 'map', label: 'Lịch trình Tour', roles: ['admin', 'staff'] }, 
     { id: 'bookings', icon: 'receipt', label: 'Quản lý Đoàn & Đơn', roles: ['admin', 'staff'] }, 
-    { id: 'rentals', icon: 'car-front-fill', label: 'Yêu cầu Thuê xe', roles: ['admin', 'staff'] }, // ĐÃ THÊM: MENU THUÊ XE
+    { id: 'rentals', icon: 'car-front-fill', label: 'Yêu cầu Thuê xe', roles: ['admin', 'staff'] }, 
     { id: 'blogs', icon: 'journal-text', label: 'Quản lý Blog', roles: ['admin', 'staff'] }, 
     { id: 'reviews', icon: 'star-half', label: 'Bình luận', roles: ['admin'] }, 
     { id: 'users', icon: 'people', label: 'Người dùng & Phân quyền', roles: ['admin'] }, 
@@ -95,7 +86,6 @@ function AdminDashboard() {
     setLoading(true);
     try {
       const cfg = getAuthHeaders();
-      // ĐÃ THÊM: GET API RENTALS VÀO MẢNG
       const [tourRes, bookRes, userRes, blogRes, reviewRes, catRes, rentalRes] = await Promise.all([
         axios.get(`${API_BASE_URL}/api/tours`),
         axios.get(`${API_BASE_URL}/api/bookings`),
@@ -112,11 +102,36 @@ function AdminDashboard() {
       setBlogs(blogRes.data.success ? blogRes.data.data : []);
       setReviews(reviewRes.data?.data || []);
       setAvailableCategories(catRes.data.success ? catRes.data.data.map(cat => cat.name) : []);
-      setRentals(rentalRes.data?.data || []); // ĐÃ THÊM: GẮN DỮ LIỆU RENTALS
+      setRentals(rentalRes.data?.data || []); 
     } catch (error) {
       console.error("Lỗi tải dữ liệu:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // =========================================================================
+  // ⚡ HÀM ĐỌC FILE ẢNH TỪ LAPTOP VÀ CHUYỂN THÀNH CHUỖI SỬ DỤNG FILEREADER (MỚI)
+  // =========================================================================
+  const handleTourFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData(prev => ({ ...prev, image: reader.result })); // Lưu chuỗi mã hóa Base64 vào dữ liệu Tour
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleBlogFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setBlogFormData(prev => ({ ...prev, image: reader.result })); // Lưu chuỗi mã hóa Base64 vào dữ liệu Blog
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -349,7 +364,6 @@ function AdminDashboard() {
     });
   };
 
-  // ĐÃ THÊM: HÀM CẬP NHẬT TRẠNG THÁI THUÊ XE
   const handleUpdateRental = async (id, currentStatus) => {
     const newStatus = currentStatus === 'pending' ? 'processed' : 'pending';
     try {
@@ -360,7 +374,6 @@ function AdminDashboard() {
     } catch (error) { showNotification('Lỗi cập nhật', 'danger'); }
   };
 
-  // ĐÃ THÊM: HÀM XÓA YÊU CẦU THUÊ XE
   const handleDeleteRental = async (id) => {
     Swal.fire({ title: 'Xóa yêu cầu này?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Xóa' }).then(async (result) => {
       if (result.isConfirmed) {
@@ -375,45 +388,20 @@ function AdminDashboard() {
   };
 
   const handleInputChange = (e) => { setFormData(prev => ({ ...prev, [e.target.name]: e.target.value })); };
-  
-  const resetForm = () => { 
-    setFormData({ _id: '', title: '', city: '', price: '', duration: '', image: '', description: '', availableSeats: 20, startDate: '', endDate: '', category: '', featured: false }); 
-    setIsEditing(false); 
-    setShowForm(false); 
-  };
+  const resetForm = () => { setFormData({ _id: '', title: '', city: '', price: '', duration: '', image: '', description: '', availableSeats: 20, startDate: '', endDate: '', category: '', featured: false }); setIsEditing(false); setShowForm(false); };
   
   const handleEditClick = (tour) => { 
     setFormData({
-      _id: tour._id || '',
-      title: tour.title || '',
-      city: tour.city || '',
-      price: tour.price || '',
-      duration: tour.duration || '',
-      image: tour.image || '',
-      description: tour.description || '',
-      availableSeats: tour.availableSeats || 0,
-      startDate: tour.startDate || '',
-      endDate: tour.endDate || '',
-      category: tour.category || '',
-      featured: tour.featured || false
+      _id: tour._id || '', title: tour.title || '', city: tour.city || '', price: tour.price || '', duration: tour.duration || '',
+      image: tour.image || '', description: tour.description || '', availableSeats: tour.availableSeats || 0,
+      startDate: tour.startDate || '', endDate: tour.endDate || '', category: tour.category || '', featured: tour.featured || false
     }); 
-    setIsEditing(true); 
-    setShowForm(true); 
-    window.scrollTo({ top: 0, behavior: 'smooth' }); 
+    setIsEditing(true); setShowForm(true); window.scrollTo({ top: 0, behavior: 'smooth' }); 
   };
 
   const handleEditBlogClick = (b) => {
-    setBlogFormData({
-      _id: b._id || '',
-      title: b.title || '',
-      content: b.content || '',
-      image: b.image || '',
-      category: b.category || 'Cẩm Nang Du Lịch',
-      featured: b.featured || false
-    });
-    setIsEditingBlog(true);
-    setShowBlogForm(true);
-    window.scrollTo({ top: 0, behavior: 'smooth' }); 
+    setBlogFormData({ _id: b._id || '', title: b.title || '', content: b.content || '', image: b.image || '', category: b.category || 'Cẩm Nang Du Lịch', featured: b.featured || false });
+    setIsEditingBlog(true); setShowBlogForm(true); window.scrollTo({ top: 0, behavior: 'smooth' }); 
   };
 
   const handleStaffBookingInputChange = (e) => {
@@ -444,8 +432,7 @@ function AdminDashboard() {
       }
       await axios.post(`${API_BASE_URL}/api/bookings`, { tourId, name, email, phone, guestSize, totalPrice, paymentMethod });
       showNotification('Đã tạo đơn đặt tour cho khách hàng.', 'success');
-      resetStaffBookingForm();
-      fetchData();
+      resetStaffBookingForm(); fetchData();
     } catch (error) { showNotification(error.response?.data?.message || 'Lỗi khi tạo đơn đặt tour', 'danger'); }
   };
 
@@ -461,24 +448,11 @@ function AdminDashboard() {
   };
 
   const handleUserInputChange = (e) => setUserFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
-  
-  const resetUserForm = () => { 
-    setUserFormData({ _id: '', name: '', email: '', phone: '', password: '', role: 'user' }); 
-    setIsEditingUser(false); 
-    setShowUserForm(false); 
-  };
+  const resetUserForm = () => { setUserFormData({ _id: '', name: '', email: '', phone: '', password: '', role: 'user' }); setIsEditingUser(false); setShowUserForm(false); };
   
   const handleEditUserClick = (user) => { 
-    setUserFormData({ 
-      _id: user._id || '', 
-      name: user.name || '', 
-      email: user.email || '', 
-      phone: user.phone || '', 
-      password: '', 
-      role: user.role || 'user' 
-    }); 
-    setIsEditingUser(true); 
-    setShowUserForm(true); 
+    setUserFormData({ _id: user._id || '', name: user.name || '', email: user.email || '', phone: user.phone || '', password: '', role: user.role || 'user' }); 
+    setIsEditingUser(true); setShowUserForm(true); 
   };
   
   const handleSubmitUser = async (e) => {
@@ -541,10 +515,8 @@ function AdminDashboard() {
           <div className="col-12 col-lg-3 col-xl-2">
             <div className="skeleton shadow-sm" style={{ height: '80vh', borderRadius: '15px' }}></div>
           </div>
-          
           <div className="col-12 col-lg-9 col-xl-10">
             <div className="skeleton mb-4" style={{ height: '40px', width: '30%', borderRadius: '8px' }}></div>
-            
             <div className="row g-4 mb-4">
               {[1, 2, 3].map(i => (
                 <div key={i} className="col-md-4">
@@ -552,7 +524,6 @@ function AdminDashboard() {
                 </div>
               ))}
             </div>
-            
             <div className="row g-4">
               <div className="col-md-6">
                 <div className="skeleton shadow-sm" style={{ height: '350px', borderRadius: '15px' }}></div>
@@ -681,34 +652,32 @@ function AdminDashboard() {
                         <div className="col-md-3"><label className="small fw-bold">Danh mục</label><select className="form-select" name="category" value={formData.category || ''} onChange={handleInputChange} required><option value="">-- Chọn danh mục --</option>{availableCategories.map((cat) => (<option key={cat} value={cat}>{cat}</option>))}</select></div>
                         <div className="col-md-6"><label className="small fw-bold">Ngày khởi hành</label><input type="text" className="form-control" name="startDate" value={formData.startDate || ''} onChange={handleInputChange} placeholder="VD: Thứ 7 hàng tuần" required /></div>
                         <div className="col-md-6"><label className="small fw-bold">Ngày kết thúc</label><input type="text" className="form-control" name="endDate" value={formData.endDate || ''} onChange={handleInputChange} placeholder="VD: Chủ nhật hàng tuần" required /></div>
+                        
+                        {/* ========================================================================= */}
+                        {/* ⚡ ĐÃ THAY THẾ: Ô CHỌN FILE ẢNH TRỰC TIẾP TỪ LAPTOP CHO TOUR */}
+                        {/* ========================================================================= */}
                         <div className="col-md-12">
-                          <label className="small fw-bold">Chọn Ảnh</label>
-                          <div className="d-flex gap-2">
-                            <input type="text" className="form-control" name="image" value={formData.image || ''} onChange={handleInputChange} placeholder="VD: tour-1.jpg hoặc /assets/img/index/tour-1.jpg" required />
-                            <button type="button" className="btn btn-outline-info rounded-pill px-3" onClick={() => setShowImagePicker(!showImagePicker)}><i className="bi bi-image"></i> Chọn</button>
-                          </div>
-                          {formData.image && <div className="mt-2"><img src={formData.image.includes('/') ? resolveImageUrl(formData.image) : `/assets/img/index/${formData.image}`} alt="Preview" className="rounded" style={{width:'100px', height:'70px', objectFit:'cover'}} onError={(e) => {e.target.style.display='none'}} /></div>}
-                        </div>
-                        {showImagePicker && (
-                          <div className="col-12 border rounded-3 p-3 bg-light">
-                            <label className="small fw-bold mb-3 d-block">Chọn ảnh từ thư viện (Nhấp để chọn):</label>
-                            <div className="row g-2">
-                              {availableImages.map((img) => (
-                                <div key={img} className="col-md-3 col-sm-4 col-6">
-                                  <div
-                                    className={`position-relative rounded-2 cursor-pointer overflow-hidden ${formData.image === img ? 'border-4 border-success' : 'border-1 border-secondary'}`}
-                                    onClick={() => { setFormData({...formData, image: img}); setShowImagePicker(false); }}
-                                    style={{cursor: 'pointer', aspectRatio: '3/2'}}
-                                  >
-                                    <img src={`/assets/img/index/${img}`} alt={img} style={{width:'100%', height:'100%', objectFit:'cover'}} />
-                                    {formData.image === img && <i className="bi bi-check-circle-fill" style={{position:'absolute', bottom:'5px', right:'5px', color:'#10b981', fontSize:'20px', textShadow: '0 0 2px white'}}></i>}
-                                  </div>
-                                  <small className="text-muted text-center d-block text-truncate mt-1">{img}</small>
-                                </div>
-                              ))}
+                          <label className="small fw-bold text-primary"><i className="bi bi-folder2-open me-1"></i> Tải ảnh từ thiết bị của bạn</label>
+                          <input 
+                            type="file" 
+                            className="form-control border-info" 
+                            accept="image/*" 
+                            onChange={handleTourFileChange} 
+                          />
+                          {formData.image && (
+                            <div className="mt-3">
+                              <span className="small text-muted d-block mb-1">Hình ảnh đang chọn:</span>
+                              <img 
+                                src={formData.image.startsWith('data:') ? formData.image : (formData.image.includes('/') ? resolveImageUrl(formData.image) : `/assets/img/index/${formData.image}`)} 
+                                alt="Preview" 
+                                className="rounded shadow-sm border border-secondary" 
+                                style={{width:'150px', height:'100px', objectFit:'cover'}} 
+                                onError={(e) => {e.target.style.display='none'}} 
+                              />
                             </div>
-                          </div>
-                        )}
+                          )}
+                        </div>
+
                         <div className="col-12"><label className="small fw-bold">Mô tả Tour</label><textarea className="form-control" name="description" rows="4" value={formData.description || ''} onChange={handleInputChange} required></textarea></div>
                       </div>
                       <div className="d-flex gap-2 mt-4">
@@ -725,7 +694,13 @@ function AdminDashboard() {
                     <tbody>
                       {filteredTours.map(t => (
                         <tr key={t._id}>
-                          <td><img src={resolveImageUrl(t.image)} className="rounded" style={{width:'50px', height:'35px', objectFit:'cover'}} /></td>
+                          <td>
+                            <img 
+                              src={t.image?.startsWith('data:') ? t.image : resolveImageUrl(t.image)} 
+                              className="rounded" 
+                              style={{width:'50px', height:'35px', objectFit:'cover'}} 
+                            />
+                          </td>
                           <td className="fw-bold">{t.title || 'Tour không tên'}</td>
                           <td className="text-muted small">
                             Khởi hành: <strong className="text-dark">{t.startDate || '---'}</strong><br/>
@@ -912,34 +887,31 @@ function AdminDashboard() {
                       <div className="row g-3">
                         <div className="col-md-8"><label className="small fw-bold">Tiêu đề bài viết</label><input type="text" className="form-control" name="title" value={blogFormData.title || ''} onChange={handleBlogInputChange} required /></div>
                         <div className="col-md-4"><label className="small fw-bold">Danh mục</label><select className="form-select" name="category" value={blogFormData.category || ''} onChange={handleBlogInputChange}><option value="Cẩm Nang Du Lịch">Cẩm Nang Du Lịch</option><option value="Kinh nghiệm">Kinh nghiệm</option><option value="Tin tức">Tin tức</option></select></div>
+                        
+                        {/* ========================================================================= */}
+                        {/* ⚡ ĐÃ THAY THẾ: Ô CHỌN FILE ẢNH TRỰC TIẾP TỪ LAPTOP CHO BLOG */}
+                        {/* ========================================================================= */}
                         <div className="col-md-12">
-                          <label className="small fw-bold">Chọn Ảnh Bìa</label>
-                          <div className="d-flex gap-2">
-                            <input type="text" className="form-control" name="image" value={blogFormData.image || ''} onChange={handleBlogInputChange} placeholder="/assets/img/index/ten-anh.jpg" required />
-                            <button type="button" className="btn btn-outline-info rounded-pill px-3" onClick={() => setShowImagePicker(!showImagePicker)}><i className="bi bi-image"></i> Chọn</button>
-                          </div>
-                          {blogFormData.image && <div className="mt-2"><img src={blogFormData.image} alt="Preview" className="rounded" style={{width:'100px', height:'70px', objectFit:'cover'}} /></div>}
-                        </div>
-                        {showImagePicker && (
-                          <div className="col-12 border rounded-3 p-3 bg-light">
-                            <label className="small fw-bold mb-3 d-block">Chọn ảnh từ thư viện (Nhấp để chọn):</label>
-                            <div className="row g-2">
-                              {availableImages.map((img) => (
-                                <div key={img} className="col-md-3 col-sm-4 col-6">
-                                  <div
-                                    className={`position-relative rounded-2 cursor-pointer overflow-hidden ${blogFormData.image === `/assets/img/index/${img}` ? 'border-4 border-success' : 'border-1 border-secondary'}`}
-                                    onClick={() => { setBlogFormData({...blogFormData, image: `/assets/img/index/${img}`}); setShowImagePicker(false); }}
-                                    style={{cursor: 'pointer', aspectRatio: '3/2'}}
-                                  >
-                                    <img src={`/assets/img/index/${img}`} alt={img} style={{width:'100%', height:'100%', objectFit:'cover'}} />
-                                    {blogFormData.image === `/assets/img/index/${img}` && <i className="bi bi-check-circle-fill" style={{position:'absolute', bottom:'5px', right:'5px', color:'#10b981', fontSize:'20px', textShadow: '0 0 2px white'}}></i>}
-                                  </div>
-                                  <small className="text-muted text-center d-block text-truncate mt-1">{img}</small>
-                                </div>
-                              ))}
+                          <label className="small fw-bold text-primary"><i className="bi bi-image-fill me-1"></i> Tải ảnh bìa bài viết từ laptop</label>
+                          <input 
+                            type="file" 
+                            className="form-control border-info" 
+                            accept="image/*" 
+                            onChange={handleBlogFileChange} 
+                          />
+                          {blogFormData.image && (
+                            <div className="mt-3">
+                              <span className="small text-muted d-block mb-1">Ảnh bìa đang chọn:</span>
+                              <img 
+                                src={blogFormData.image} 
+                                alt="Preview" 
+                                className="rounded shadow-sm border border-secondary" 
+                                style={{width:'150px', height:'100px', objectFit:'cover'}} 
+                              />
                             </div>
-                          </div>
-                        )}
+                          )}
+                        </div>
+
                         <div className="col-12"><label className="small fw-bold">Nội dung bài viết</label><textarea className="form-control" name="content" rows="5" value={blogFormData.content || ''} onChange={handleBlogInputChange} required></textarea></div>
                       </div>
                       <button type="submit" className="btn btn-info text-white w-100 mt-3 rounded-pill fw-bold">ĐĂNG BÀI</button>
@@ -952,7 +924,13 @@ function AdminDashboard() {
                     <tbody>
                       {filteredBlogs.map(b => (
                         <tr key={b._id}>
-                          <td><img src={b.image} className="rounded" style={{width:'50px', height:'35px', objectFit:'cover'}} /></td>
+                          <td>
+                            <img 
+                              src={b.image} 
+                              className="rounded" 
+                              style={{width:'50px', height:'35px', objectFit:'cover'}} 
+                            />
+                          </td>
                           <td className="fw-bold text-truncate" style={{maxWidth:'300px'}}>{b.title || 'Bài viết không tên'}</td>
                           <td><span className="badge bg-light text-dark">{b.category || 'Không rõ'}</span></td>
                           <td>{b.createdAt ? new Date(b.createdAt).toLocaleDateString('vi-VN') : '---'}</td>
@@ -995,7 +973,7 @@ function AdminDashboard() {
               </div>
             )}
 
-            {/* ĐÃ THÊM: GIAO DIỆN QUẢN LÝ YÊU CẦU THUÊ XE */}
+            {/* QUẢN LÝ YÊU CẦU THUÊ XE */}
             {activeTab === 'rentals' && (userRole === 'admin' || userRole === 'staff') && (
               <div className="animation-fade-in card border-0 shadow-sm rounded-4 p-4">
                 <h4 className="fw-bold mb-4"><i className="bi bi-car-front text-info me-2"></i>Quản lý Yêu cầu Thuê xe</h4>
@@ -1035,7 +1013,6 @@ function AdminDashboard() {
             {/* BÁO CÁO DOANH THU */}
             {activeTab === 'revenue' && userRole === 'admin' && (
               <div className="animation-fade-in">
-                
                 <div className="d-flex justify-content-between align-items-center mb-4 bg-white p-3 rounded-pill shadow-sm">
                   <div className="d-flex align-items-center w-50 px-3 border-end">
                     <i className="bi bi-search text-muted me-2"></i>

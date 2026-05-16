@@ -35,12 +35,12 @@ const bookingSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['pending', 'paid', 'cancelled'], // pending: Chờ thanh toán, paid: Đã thanh toán
+      enum: ['pending', 'pending_confirmation', 'paid', 'cancelled'], // pending: Chờ thanh toán; pending_confirmation: chờ xác nhận; paid: Đã thanh toán
       default: 'pending',
     },
     paymentMethod: {
       type: String,
-      enum: ['cash', 'sandbox'], // sandbox là phương thức thanh toán giả lập theo yêu cầu đồ án
+      enum: ['cash', 'sandbox', 'vnpay'], // sandbox/vnpay là phương thức thanh toán giả lập/online
       default: 'sandbox',
     }
   },

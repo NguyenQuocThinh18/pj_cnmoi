@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Booking = require('../models/Booking');
 const User = require('../models/User'); 
 
@@ -16,10 +17,20 @@ const createBooking = async (req, res) => {
       status: paymentMethod === 'cash' ? 'paid' : 'pending',
     };
 
-    if (userId) bookingData.userId = userId;
-    if (name) bookingData.name = name;
-    if (email) bookingData.email = email;
-    if (phone) bookingData.phone = phone;
+    // ĐÃ FIX: Tự động tra cứu DB để điền thông tin cá nhân nếu phía Frontend không truyền lên
+    if (userId) {
+      bookingData.userId = userId;
+      const foundUser = await User.findById(userId);
+      if (foundUser) {
+        bookingData.name = name || foundUser.name;
+        bookingData.email = email || foundUser.email;
+        bookingData.phone = phone || foundUser.phone;
+      }
+    } else {
+      if (name) bookingData.name = name;
+      if (email) bookingData.email = email;
+      if (phone) bookingData.phone = phone;
+    }
 
     const newBooking = new Booking(bookingData);
     const savedBooking = await newBooking.save();
@@ -39,7 +50,6 @@ const getAllBookings = async (req, res) => {
       const queryVal = code || phone;
       const cleanQuery = queryVal.replace(/#/g, '').replace(/\s+/g, '').toLowerCase();
       
-      // Find all bookings for tracking
       const allBookings = await Booking.find()
         .populate('tourId', 'title image duration price')
         .populate('userId')
@@ -60,14 +70,13 @@ const getAllBookings = async (req, res) => {
         });
       }
       
-      // HATEOAS links
       const baseUrl = `${req.protocol}://${req.get('host')}${req.baseUrl}`;
       const links = {
         self: `${baseUrl}?${new URLSearchParams(req.query).toString()}`,
         collection: `${baseUrl}`
       };
       
-      res.set('Cache-Control', 'private, max-age=0'); // No cache for tracking
+      res.set('Cache-Control', 'private, max-age=0'); 
       return res.status(200).json({ 
         success: true, 
         count: filteredBookings.length,
@@ -76,10 +85,8 @@ const getAllBookings = async (req, res) => {
       });
     }
     
-    // Regular listing with filters
     if (status) query.status = status;
     
-    // Pagination
     const pageNum = parseInt(page);
     const limitNum = parseInt(limit);
     const skip = (pageNum - 1) * limitNum;
@@ -93,7 +100,6 @@ const getAllBookings = async (req, res) => {
     
     const total = await Booking.countDocuments(query);
     
-    // HATEOAS links
     const baseUrl = `${req.protocol}://${req.get('host')}${req.baseUrl}`;
     const links = {
       self: `${baseUrl}?${new URLSearchParams(req.query).toString()}`,
@@ -104,7 +110,7 @@ const getAllBookings = async (req, res) => {
     if (pageNum > 1) links.prev = `${baseUrl}?page=${pageNum - 1}&limit=${limitNum}`;
     if (pageNum < Math.ceil(total / limitNum)) links.next = `${baseUrl}?page=${pageNum + 1}&limit=${limitNum}`;
     
-    res.set('Cache-Control', 'private, max-age=60'); // Cache 1 minute for admin
+    res.set('Cache-Control', 'private, max-age=60'); 
     res.status(200).json({ 
       success: true, 
       count: bookings.length,
@@ -125,12 +131,10 @@ const updateBooking = async (req, res) => {
     
     let updateData = {};
     
-    // Handle payment update
     if (paymentMethod) {
       updateData.status = paymentMethod === 'cash' ? 'pending_confirmation' : 'paid';
     }
     
-    // Handle status update
     if (status) {
       updateData.status = status;
     }
@@ -145,7 +149,6 @@ const updateBooking = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Không tìm thấy đơn đặt tour' });
     }
     
-    // HATEOAS links
     const baseUrl = `${req.protocol}://${req.get('host')}${req.baseUrl}`;
     const links = {
       self: `${baseUrl}/${updatedBooking._id}`,
@@ -167,11 +170,22 @@ const updateBooking = async (req, res) => {
 const getUserBookings = async (req, res) => {
   try {
     const { userId } = req.params;
-    const bookings = await Booking.find({ userId })
+
+    // ĐÃ FIX: Chống lỗi lệch kiểu dữ liệu (String vs ObjectId) trong MongoDB bằng cách quét cả hai trường hợp
+    let findQuery = { userId: userId };
+    if (mongoose.Types.ObjectId.isValid(userId)) {
+      findQuery = {
+        $or: [
+          { userId: userId },
+          { userId: new mongoose.Types.ObjectId(userId) }
+        ]
+      };
+    }
+
+    const bookings = await Booking.find(findQuery)
       .populate('tourId', 'title image price duration')
       .sort({ createdAt: -1 }); 
     
-    // HATEOAS links
     const baseUrl = `${req.protocol}://${req.get('host')}${req.baseUrl}`;
     const links = {
       self: `${baseUrl}/user/${userId}`,
@@ -179,7 +193,7 @@ const getUserBookings = async (req, res) => {
       user: `${req.protocol}://${req.get('host')}/api/users/${userId}`
     };
     
-    res.set('Cache-Control', 'private, max-age=60'); // Cache 1 minute
+    res.set('Cache-Control', 'private, max-age=60'); 
     res.status(200).json({ 
       success: true, 
       data: bookings,

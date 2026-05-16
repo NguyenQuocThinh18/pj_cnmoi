@@ -78,6 +78,7 @@ function TourDetails() {
     fetchData();
   }, [tourId]);
 
+  // ĐÃ FIX: Truyền tải đầy đủ thông tin liên hệ lên API khi đặt tour để đồng bộ với trang cá nhân
   const handleBooking = async () => {
     const userString = localStorage.getItem('user');
     if (!userString) {
@@ -90,7 +91,10 @@ function TourDetails() {
     try {
       const res = await axios.post(`${API_BASE_URL}/api/bookings`, {
         tourId: tour._id,
-        userId: user.id || user._id,
+        userId: user._id || user.id,
+        name: user.name || '',
+        email: user.email || '',
+        phone: user.phone || '',
         guestSize: guestSize,
         totalPrice: tour.price * guestSize
       });
@@ -98,7 +102,9 @@ function TourDetails() {
         navigate(`/payment/${res.data.data._id}`, { state: { booking: res.data.data, tourData: tour } });
       }
     } catch (err) {
-      Swal.fire('Lỗi', 'Có lỗi xảy ra khi đặt tour. Vui lòng thử lại sau.', 'error');
+      const errorMessage = err.response?.data?.message || err.response?.data?.error || err.message || 'Có lỗi xảy ra khi đặt tour. Vui lòng thử lại sau.';
+      console.error('Lỗi đặt tour:', err.response?.data || err);
+      Swal.fire('Lỗi', errorMessage, 'error');
     } finally {
       setBookingLoading(false);
     }
@@ -156,7 +162,6 @@ function TourDetails() {
           .star-inactive { color: #dee2e6; cursor: pointer; transition: 0.2s; }
           .review-avatar { width: 45px; height: 45px; min-width: 45px; background: #0dcaf0; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.1rem; box-shadow: 0 4px 10px rgba(13,202,240,0.2); }
           
-          /* CSS CHUẨN CHO BẢN ĐỒ */
           .map-container { height: 350px; width: 100%; border-radius: 16px; overflow: hidden; border: 1px solid #dee2e6; z-index: 1; }
           .leaflet-container { z-index: 1 !important; }
         `}
@@ -189,7 +194,6 @@ function TourDetails() {
               <p className="text-secondary lh-lg">{tour.description || `Khám phá vùng đất ${tour.city} cùng Du Lịch Việt với những trải nghiệm tuyệt vời nhất.`}</p>
             </div>
 
-            {/* --- THÊM MỚI: BẢN ĐỒ VỊ TRÍ TOUR --- */}
             <div className="bg-white p-4 p-md-5 rounded-4 shadow-sm border mb-4">
               <h4 className="fw-bold border-bottom pb-3 mb-4"><i className="bi bi-map-fill text-danger me-2"></i> Vị trí trên bản đồ</h4>
               <div className="map-container">
@@ -215,9 +219,7 @@ function TourDetails() {
               </div>
               <small className="text-muted mt-2 d-block fst-italic">* Bản đồ minh họa vị trí tương đối của điểm đến.</small>
             </div>
-            {/* ---------------------------------- */}
 
-            {/* PHẦN ĐÁNH GIÁ VÀ BÌNH LUẬN */}
             <div className="bg-white p-4 p-md-5 rounded-4 shadow-sm border mb-4">
               <h4 className="fw-bold border-bottom pb-3 mb-4"><i className="bi bi-star-fill text-warning me-2"></i> Đánh giá khách hàng ({reviews.length})</h4>
               
@@ -273,8 +275,6 @@ function TourDetails() {
           </div>
 
           <div className="col-12 col-lg-4">
-            
-            {/* THỐNG KÊ TÌNH TRẠNG CHỖ NGỒI */}
             {seatStats && (
               <div className="card border-0 shadow-sm rounded-4 mb-4 p-4 bg-white border-top border-info border-4">
                 <h6 className="fw-bold mb-3 border-bottom pb-2">
@@ -310,7 +310,6 @@ function TourDetails() {
               </div>
             )}
 
-            {/* KHỐI ĐẶT TOUR */}
             <div className="card border-0 shadow-lg rounded-4 sticky-booking overflow-hidden">
               <div className="p-4 text-center text-white" style={{ background: 'linear-gradient(135deg, #0dcaf0 0%, #007bff 100%)' }}>
                 <h5 className="mb-1 opacity-75 small fw-bold">GIÁ TRỌN GÓI</h5>
