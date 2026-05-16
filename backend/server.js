@@ -6,22 +6,22 @@ const cron = require('node-cron');
 const Booking = require('./models/Booking.js'); 
 const Chat = require('./models/Chat.js'); 
 
-// --- 1. IMPORT THƯ VIỆN HTTP, SOCKET.IO VÀ AI (MỚI) ---
+// --- 1. IMPORT THƯ VIỆN HTTP, SOCKET.IO VÀ AI ---
 const http = require('http');
 const { Server } = require('socket.io');
 const { GoogleGenerativeAI } = require('@google/generative-ai'); 
 
-// Import Routes
+// --- IMPORT CÁC ĐƯỜNG DẪN API (ROUTES) ---
+const authRoutes = require('./routes/authRoutes');
 const tourRoutes = require('./routes/tourRoutes');
 const bookingRoutes = require('./routes/bookingRoutes');
-const authRoutes = require('./routes/authRoutes');
 const blogRoutes = require('./routes/blogRoutes');
 const reviewRoutes = require('./routes/reviewRoutes'); 
 const categoryRoutes = require('./routes/categoryRoutes');
 const userRoutes = require('./routes/userRoutes');
 const rentalRoutes = require('./routes/rentalRoutes');
-// 👇 ĐÃ THÊM: Import Route Thanh toán VNPay
-const paymentRoutes = require('./routes/paymentRoutes'); 
+const carRoutes = require('./routes/carRoutes'); // 👈 Route Quản lý Kho Xe
+const paymentRoutes = require('./routes/paymentRoutes'); // 👈 Route Thanh toán VNPay / Chuyển khoản tự động
 
 dotenv.config({ path: './.env' });
 connectDB();
@@ -32,16 +32,20 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "*", // Cho phép mọi Frontend kết nối tới
-    methods: ["GET", "POST"]
+    origin: "*", // Cho phép mọi Frontend kết nối tới (Tránh lỗi CORS)
+    methods: ["GET", "POST", "PUT", "DELETE"]
   }
 });
 
-// Middleware
-app.use(cors()); 
-app.use(express.json()); 
+// 🚀 QUAN TRỌNG: Gán io vào app để các file Route (như rentalRoutes) có thể lấy ra dùng để báo động
+app.set('io', io);
 
-// ROUTES
+// --- 3. MIDDLEWARE CƠ BẢN ---
+app.use(cors()); 
+app.use(express.json({ limit: '50mb' })); // Tăng limit để upload được ảnh Base64
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// --- 4. KHAI BÁO SỬ DỤNG API ROUTES ---
 app.use('/api/auth', authRoutes); 
 app.use('/api/tours', tourRoutes);
 app.use('/api/bookings', bookingRoutes);
@@ -50,8 +54,8 @@ app.use('/api/reviews', reviewRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/rentals', rentalRoutes);
-// 👇 ĐÃ THÊM: Khai báo đường dẫn API cho VNPay
-app.use('/api/payment', paymentRoutes);
+app.use('/api/cars', carRoutes); // 👈 Kích hoạt API Kho Xe
+app.use('/api/payment', paymentRoutes); // 👈 Kích hoạt API Thanh toán
 
 // =====================================================================
 // 🤖 API: TRỢ LÝ AI TƯ VẤN DU LỊCH (GEMINI)
@@ -62,7 +66,7 @@ app.post('/api/chat/ai', async (req, res) => {
     
     // Khởi tạo model AI với API Key từ file .env
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); // Nâng cấp lên model Flash nhanh hơn
 
     // Tạo bối cảnh (Prompt) ép AI đóng vai nhân viên công ty bạn
     const prompt = `
@@ -75,11 +79,11 @@ app.post('/api/chat/ai', async (req, res) => {
     const responseText = result.response.text();
 
     res.status(200).json({ success: true, text: responseText });
-  }catch (error) {
-    console.error("❌ Lỗi chi tiết thông tin:", error.message); // Hiện lỗi thật ra Terminal
+  } catch (error) {
+    console.error("❌ Lỗi AI Bot:", error.message); 
     res.status(500).json({
       success: false,
-      error: error.message, // Gửi lỗi thật về frontend để bạn xem
+      error: error.message, 
       text: "Lỗi hệ thống: " + error.message
     });
   }
@@ -122,10 +126,10 @@ cron.schedule('* * * * *', async () => {
 });
 
 // =========================================================
-// 💬 BỘ NÃO CỦA CHAT REAL-TIME (ĐÃ FIX THÀNH PRIVATE ROOMS)
+// 💬 BỘ NÃO CỦA CHAT REAL-TIME (TÍCH HỢP TƯ VẤN KHÁCH & ADMIN BÁO ĐỘNG)
 // =========================================================
 io.on('connection', (socket) => {
-  console.log(`⚡ Một thiết bị vừa kết nối Chat (ID: ${socket.id})`);
+  console.log(`⚡ Một thiết bị vừa kết nối Socket (ID: ${socket.id})`);
 
   socket.on('join_room', (roomName) => {
     socket.join(roomName);
@@ -143,16 +147,16 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    console.log(`❌ Thiết bị đã ngắt kết nối Chat (ID: ${socket.id})`);
+    console.log(`❌ Thiết bị đã ngắt kết nối (ID: ${socket.id})`);
   });
 });
 
 app.get('/', (req, res) => {
-  res.send('API Du lịch đang hoạt động!');
+  res.send('API Hệ thống Du Lịch Việt đang hoạt động ổn định! 🚀');
 });
 
 const PORT = process.env.PORT || 5000;
 
 server.listen(PORT, () => {
-  console.log(`🚀 Server & AI Bot & Chat Socket.io đang chạy trên cổng ${PORT}...`);
+  console.log(`🚀 Server Backend & AI Bot & Socket.io đang chạy trên cổng ${PORT}...`);
 });

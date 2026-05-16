@@ -5,6 +5,7 @@ import { resolveImageUrl } from '../../public/assets/img/index/imagePath';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend } from 'recharts';
 import Swal from 'sweetalert2'; 
 import * as XLSX from 'xlsx'; 
+import { io } from 'socket.io-client'; 
 
 function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('overview');
@@ -17,17 +18,35 @@ function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   
   const [filterType, setFilterType] = useState('all'); 
+  const [rentalFilter, setRentalFilter] = useState('all'); 
   const [searchTerm, setSearchTerm] = useState('');
 
+  // --- TRẠNG THÁI FORM TOUR ---
   const [showForm, setShowForm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
     _id: '', title: '', city: '', price: '', duration: '', image: '', description: '', availableSeats: 20, startDate: '', endDate: '', category: '', featured: false
   });
 
+  // --- TRẠNG THÁI FORM BLOG ---
   const [showBlogForm, setShowBlogForm] = useState(false);
   const [isEditingBlog, setIsEditingBlog] = useState(false);
   const [blogFormData, setBlogFormData] = useState({ _id: '', title: '', content: '', image: '', category: 'Cẩm Nang Du Lịch', featured: false });
+
+  // --- TRẠNG THÁI FORM THUÊ XE ---
+  const [showRentalForm, setShowRentalForm] = useState(false);
+  const [isEditingRental, setIsEditingRental] = useState(false);
+  const [rentalFormData, setRentalFormData] = useState({
+    _id: '', name: '', phone: '', email: '', carType: 'Xe 16 Chỗ', date: '', endDate: '', destination: '', rentalType: 'driver'
+  });
+
+  // --- TRẠNG THÁI FORM QUẢN LÝ XE ---
+  const [cars, setCars] = useState([]);
+  const [showCarForm, setShowCarForm] = useState(false);
+  const [isEditingCar, setIsEditingCar] = useState(false);
+  const [carFormData, setCarFormData] = useState({
+    _id: '', name: '', carType: 'Van', seats: 16, pricePerDay: 1000000, description: '', image: '', features: [], licensePlate: '', manufacturer: '', yearManufactured: new Date().getFullYear()
+  });
 
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [selectedTour, setSelectedTour] = useState(null);
@@ -39,6 +58,31 @@ function AdminDashboard() {
 
   const [availableCategories, setAvailableCategories] = useState([]);
   const [userRole, setUserRole] = useState('user');
+
+  // LẮNG NGHE CHUÔNG BÁO ĐỘNG REAL-TIME TỪ KHÁCH THUÊ XE
+  useEffect(() => {
+    const socket = io(API_BASE_URL);
+
+    socket.on('new-rental-request', (newRequest) => {
+      setRentals(prev => [newRequest, ...prev]);
+      const alarmSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-84.wav');
+      alarmSound.play().catch(() => console.log("Cần click chuột tương tác trình duyệt trước để mở quyền âm thanh"));
+
+      Swal.fire({
+        icon: 'info',
+        title: 'YÊU CẦU THUÊ XE MỚI! 🚗',
+        text: `Khách hàng ${newRequest.name} vừa đăng ký thuê xe ${newRequest.carType}.`,
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 4500
+      });
+    });
+
+    return () => {
+      socket.disconnect(); 
+    };
+  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -58,6 +102,7 @@ function AdminDashboard() {
     { id: 'tours', icon: 'map', label: 'Lịch trình Tour', roles: ['admin', 'staff'] }, 
     { id: 'bookings', icon: 'receipt', label: 'Quản lý Đoàn & Đơn', roles: ['admin', 'staff'] }, 
     { id: 'rentals', icon: 'car-front-fill', label: 'Yêu cầu Thuê xe', roles: ['admin', 'staff'] }, 
+    { id: 'cars', icon: 'car-front', label: 'Quản lý Xe', roles: ['admin', 'staff'] }, 
     { id: 'blogs', icon: 'journal-text', label: 'Quản lý Blog', roles: ['admin', 'staff'] }, 
     { id: 'reviews', icon: 'star-half', label: 'Bình luận', roles: ['admin'] }, 
     { id: 'users', icon: 'people', label: 'Người dùng & Phân quyền', roles: ['admin'] }, 
@@ -86,14 +131,15 @@ function AdminDashboard() {
     setLoading(true);
     try {
       const cfg = getAuthHeaders();
-      const [tourRes, bookRes, userRes, blogRes, reviewRes, catRes, rentalRes] = await Promise.all([
+      const [tourRes, bookRes, userRes, blogRes, reviewRes, catRes, rentalRes, carRes] = await Promise.all([
         axios.get(`${API_BASE_URL}/api/tours`),
         axios.get(`${API_BASE_URL}/api/bookings`),
         axios.get(`${API_BASE_URL}/api/users`, cfg).catch(() => ({ data: { success: true, data: [] } })),
         axios.get(`${API_BASE_URL}/api/blogs`),
         axios.get(`${API_BASE_URL}/api/reviews/all`).catch(() => ({ data: { success: true, data: [] } })),
         axios.get(`${API_BASE_URL}/api/categories`).catch(() => ({ data: { success: true, data: [] } })),
-        axios.get(`${API_BASE_URL}/api/rentals`, cfg).catch(() => ({ data: { success: true, data: [] } }))
+        axios.get(`${API_BASE_URL}/api/rentals`, cfg).catch(() => ({ data: { success: true, data: [] } })),
+        axios.get(`${API_BASE_URL}/api/cars`).catch(() => ({ data: { success: true, data: [] } }))
       ]);
 
       setTours(tourRes.data.success ? tourRes.data.data : (tourRes.data || []));
@@ -102,7 +148,8 @@ function AdminDashboard() {
       setBlogs(blogRes.data.success ? blogRes.data.data : []);
       setReviews(reviewRes.data?.data || []);
       setAvailableCategories(catRes.data.success ? catRes.data.data.map(cat => cat.name) : []);
-      setRentals(rentalRes.data?.data || []); 
+      setRentals(rentalRes.data?.data || []);
+      setCars(carRes.data?.data || []); 
     } catch (error) {
       console.error("Lỗi tải dữ liệu:", error);
     } finally {
@@ -110,15 +157,12 @@ function AdminDashboard() {
     }
   };
 
-  // =========================================================================
-  // ⚡ HÀM ĐỌC FILE ẢNH TỪ LAPTOP VÀ CHUYỂN THÀNH CHUỖI SỬ DỤNG FILEREADER (MỚI)
-  // =========================================================================
   const handleTourFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setFormData(prev => ({ ...prev, image: reader.result })); // Lưu chuỗi mã hóa Base64 vào dữ liệu Tour
+        setFormData(prev => ({ ...prev, image: reader.result }));
       };
       reader.readAsDataURL(file);
     }
@@ -129,12 +173,169 @@ function AdminDashboard() {
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setBlogFormData(prev => ({ ...prev, image: reader.result })); // Lưu chuỗi mã hóa Base64 vào dữ liệu Blog
+        setBlogFormData(prev => ({ ...prev, image: reader.result }));
       };
       reader.readAsDataURL(file);
     }
   };
 
+  // =========================================================================
+  // ⚡ XỬ LÝ SỰ KIỆN CRUD TRỌN GÓI CHO THUÊ XE
+  // =========================================================================
+  const handleRentalInputChange = (e) => {
+    setRentalFormData({ ...rentalFormData, [e.target.name]: e.target.value });
+  };
+
+  const resetRentalForm = () => {
+    setRentalFormData({ _id: '', name: '', phone: '', email: '', carType: 'Xe 16 Chỗ', date: '', endDate: '', destination: '', rentalType: 'driver' });
+    setIsEditingRental(false);
+    setShowRentalForm(false);
+  };
+
+  const handleEditRentalClick = (r) => {
+    setRentalFormData({
+      _id: r._id || '',
+      name: r.name || '',
+      phone: r.phone || '',
+      email: r.email || '',
+      carType: r.carType || 'Xe 16 Chỗ',
+      date: r.date || '',
+      endDate: r.endDate || '',
+      destination: r.destination || '',
+      rentalType: r.rentalType || 'driver'
+    });
+    setIsEditingRental(true);
+    setShowRentalForm(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' }); 
+  };
+
+  const handleSubmitRental = async (e) => {
+    e.preventDefault();
+    try {
+      const cfg = getAuthHeaders();
+      if (!cfg) return showNotification('Bạn chưa đăng nhập!', 'danger');
+
+      const submitData = { ...rentalFormData };
+
+      if (isEditingRental) {
+        await axios.put(`${API_BASE_URL}/api/rentals/${submitData._id}`, submitData, cfg);
+        showNotification('Cập nhật thông tin phiếu thuê xe thành công!', 'success');
+      } else {
+        delete submitData._id; // 🔥 XÓA _ID TRỐNG KHI THÊM MỚI ĐỂ KHÔNG BỊ LỖI CASTERROR 
+        await axios.post(`${API_BASE_URL}/api/rentals`, submitData, cfg);
+        showNotification('Thêm mới phiếu thuê xe du lịch thành công!', 'success');
+      }
+      resetRentalForm();
+      fetchData();
+    } catch (error) {
+      showNotification('Gặp lỗi khi đồng bộ dữ liệu xe lên server!', 'danger');
+    }
+  };
+
+  const handleUpdateRental = async (id, currentStatus) => {
+    const newStatus = currentStatus === 'pending' ? 'processed' : 'pending';
+    try {
+      const cfg = getAuthHeaders();
+      await axios.put(`${API_BASE_URL}/api/rentals/${id}`, { status: newStatus }, cfg);
+      fetchData();
+      showNotification('Cập nhật trạng thái thành công', 'success');
+    } catch (error) { showNotification('Lỗi cập nhật', 'danger'); }
+  };
+
+  const handleDeleteRental = async (id) => {
+    Swal.fire({ title: 'Xóa yêu cầu này?', text: "Dữ liệu bến bãi sẽ bị gỡ vĩnh viễn khỏi máy chủ!", icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Xóa' }).then(async (result) => {
+      if (result.isConfirmed) {
+        try {
+          const cfg = getAuthHeaders();
+          await axios.delete(`${API_BASE_URL}/api/rentals/${id}`, cfg);
+          fetchData();
+          showNotification('Đã gỡ phiếu yêu cầu thành công', 'success');
+        } catch (e) { showNotification('Lỗi xóa', 'danger'); }
+      }
+    });
+  };
+
+  // --- 🚗 CÁC HÀM QUẢN LÝ XE (CAR CRUD) ---
+  const handleCarInputChange = (e) => {
+    const { name, value } = e.target;
+    setCarFormData(prev => ({ ...prev, [name]: name === 'seats' || name === 'pricePerDay' || name === 'yearManufactured' ? Number(value) : value }));
+  };
+
+  const resetCarForm = () => {
+    setCarFormData({ _id: '', name: '', carType: 'Van', seats: 16, pricePerDay: 1000000, description: '', image: '', features: [], licensePlate: '', manufacturer: '', yearManufactured: new Date().getFullYear() });
+    setIsEditingCar(false);
+    setShowCarForm(false);
+  };
+
+  const handleEditCarClick = (car) => {
+    setCarFormData({
+      _id: car._id || '',
+      name: car.name || '',
+      carType: car.carType || 'Van',
+      seats: car.seats || 16,
+      pricePerDay: car.pricePerDay || 1000000,
+      description: car.description || '',
+      image: car.image || '',
+      features: car.features || [],
+      licensePlate: car.licensePlate || '',
+      manufacturer: car.manufacturer || '',
+      yearManufactured: car.yearManufactured || new Date().getFullYear()
+    });
+    setIsEditingCar(true);
+    setShowCarForm(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleSubmitCar = async (e) => {
+    e.preventDefault();
+    try {
+      const cfg = getAuthHeaders();
+      if (!cfg) return showNotification('Bạn chưa đăng nhập!', 'danger');
+
+      const submitData = { ...carFormData };
+
+      if (isEditingCar) {
+        await axios.put(`${API_BASE_URL}/api/cars/${submitData._id}`, submitData, cfg);
+        showNotification('Cập nhật thông tin xe thành công!', 'success');
+      } else {
+        delete submitData._id; // 🔥 XÓA _ID TRỐNG KHI THÊM MỚI ĐỂ KHÔNG BỊ LỖI CASTERROR 
+        await axios.post(`${API_BASE_URL}/api/cars`, submitData, cfg);
+        showNotification('Thêm xe mới thành công!', 'success');
+      }
+      resetCarForm();
+      fetchData();
+    } catch (error) {
+      const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || 'Lỗi khi lưu thông tin xe!';
+      showNotification(errorMessage, 'danger');
+      console.error('Lỗi lưu xe:', error.response?.data || error.message);
+    }
+  };
+
+  const handleDeleteCar = async (id) => {
+    Swal.fire({ title: 'Xóa xe này?', text: "Dữ liệu xe sẽ bị xóa vĩnh viễn!", icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Xóa' }).then(async (result) => {
+      if (result.isConfirmed) {
+        try {
+          const cfg = getAuthHeaders();
+          await axios.delete(`${API_BASE_URL}/api/cars/${id}`, cfg);
+          fetchData();
+          showNotification('Xóa xe thành công', 'success');
+        } catch (e) { showNotification('Lỗi xóa xe', 'danger'); }
+      }
+    });
+  };
+
+  const handleCarFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setCarFormData(prev => ({ ...prev, image: reader.result }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // --- CÁC HÀM FILTER MEMO ---
   const filteredBookings = useMemo(() => {
     const today = new Date();
     return bookings.filter(b => {
@@ -162,6 +363,13 @@ function AdminDashboard() {
   const filteredBlogs = useMemo(() => {
     return blogs.filter(b => (b.title || '').toLowerCase().includes(searchTerm.toLowerCase()));
   }, [blogs, searchTerm]);
+
+  const filteredCars = useMemo(() => {
+    return cars.filter(c => 
+      (c.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+      (c.licensePlate || '').toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [cars, searchTerm]);
 
   const revenueData = useMemo(() => {
     const now = new Date();
@@ -227,53 +435,28 @@ function AdminDashboard() {
 
   const exportUsersToExcel = () => {
     const dataToExport = filteredUsers.map((u, i) => ({
-      "STT": i + 1,
-      "Họ Tên": u.name || '',
-      "Email": u.email || '',
-      "Số Điện Thoại": u.phone || 'N/A',
-      "Quyền Hạn": u.role === 'admin' ? 'Quản trị viên' : u.role === 'staff' ? 'Nhân viên' : 'Khách hàng'
+      "STT": i + 1, "Họ Tên": u.name || '', "Email": u.email || '', "Số Điện Thoại": u.phone || 'N/A', "Quyền Hạn": u.role === 'admin' ? 'Quản trị viên' : u.role === 'staff' ? 'Nhân viên' : 'Khách hàng'
     }));
     downloadExcel(dataToExport, "Danh_Sach_Nguoi_Dung");
   };
 
   const exportToursToExcel = () => {
     const dataToExport = filteredTours.map((t, i) => ({
-      "STT": i + 1,
-      "Tên Tour": t.title || '',
-      "Thành Phố": t.city || '',
-      "Giá Bán (VNĐ)": t.price || 0,
-      "Thời Lượng": t.duration || '',
-      "Danh Mục": t.category || '',
-      "Trạng Thái": t.featured ? 'Nổi bật' : 'Bình thường'
+      "STT": i + 1, "Tên Tour": t.title || '', "Thành Phố": t.city || '', "Giá Bán (VNĐ)": t.price || 0, "Thời Lượng": t.duration || '', "Danh Mục": t.category || '', "Trạng Thái": t.featured ? 'Nổi bật' : 'Bình thường'
     }));
     downloadExcel(dataToExport, "Danh_Sach_Tour");
   };
 
   const exportBookingsToExcel = () => {
     const dataToExport = filteredBookings.map((b, i) => ({
-      "STT": i + 1,
-      "Mã Đơn": '#' + String(b._id).substring(18).toUpperCase(),
-      "Ngày Đặt": new Date(b.createdAt).toLocaleDateString('vi-VN'),
-      "Khách Hàng": b.userId?.name || b.name || 'Khách vãng lai',
-      "Số Điện Thoại": b.userId?.phone || b.phone || 'N/A',
-      "Tên Tour": b.tourId?.title || 'Tour đã xóa',
-      "Số Lượng Khách": b.guestSize || 1,
-      "Tổng Tiền (VNĐ)": b.totalPrice || 0,
-      "Trạng Thái": b.status === 'paid' ? 'Đã Thanh Toán' : b.status === 'cancelled' ? 'Đã Hủy' : 'Chờ Xử Lý'
+      "STT": i + 1, "Mã Đơn": '#' + String(b._id).substring(18).toUpperCase(), "Ngày Đặt": new Date(b.createdAt).toLocaleDateString('vi-VN'), "Khách Hàng": b.userId?.name || b.name || 'Khách vãng lai', "Số Điện Thoại": b.userId?.phone || b.phone || 'N/A', "Tên Tour": b.tourId?.title || 'Tour đã xóa', "Số Lượng Khách": b.guestSize || 1, "Tổng Tiền (VNĐ)": b.totalPrice || 0, "Trạng Thái": b.status === 'paid' ? 'Đã Thanh Toán' : b.status === 'cancelled' ? 'Đã Hủy' : 'Chờ Xử Lý'
     }));
     downloadExcel(dataToExport, "Lich_Su_Don_Dat_Tour");
   };
 
   const exportRevenueToExcel = () => {
     const dataToExport = filteredRevenueBookings.map((b, i) => ({
-      "STT": i + 1,
-      "Mã Đơn": '#' + String(b._id).substring(18).toUpperCase(),
-      "Ngày Thanh Toán": new Date(b.createdAt).toLocaleDateString('vi-VN'),
-      "Tên Khách Hàng": b.userId?.name || b.name || 'Khách vãng lai',
-      "SĐT Liên Hệ": b.userId?.phone || b.phone || 'N/A',
-      "Tour Đã Đặt": b.tourId?.title || 'Tour đã xóa',
-      "Doanh Thu Mang Về (VNĐ)": b.totalPrice || 0,
-      "Hình Thức": b.paymentMethod === 'vnpay' ? 'Cổng VNPay' : (b.paymentMethod === 'bank' ? 'Chuyển Khoản' : 'Tiền Mặt')
+      "STT": i + 1, "Mã Đơn": '#' + String(b._id).substring(18).toUpperCase(), "Ngày Thanh Toán": new Date(b.createdAt).toLocaleDateString('vi-VN'), "Tên Khách Hàng": b.userId?.name || b.name || 'Khách vãng lai', "SĐT Liên Hệ": b.userId?.phone || b.phone || 'N/A', "Tour Đã Đặt": b.tourId?.title || 'Tour đã xóa', "Doanh Thu Mang Về (VNĐ)": b.totalPrice || 0, "Hình Thức": b.paymentMethod === 'vnpay' ? 'Cổng VNPay' : (b.paymentMethod === 'bank' ? 'Chuyển Khoản' : 'Tiền Mặt')
     }));
     downloadExcel(dataToExport, "Bao_Cao_Doanh_Thu_Chi_Tiet");
   };
@@ -285,23 +468,22 @@ function AdminDashboard() {
     try {
       const cfg = getAuthHeaders();
       if (!cfg) { showNotification('Bạn chưa đăng nhập hoặc token đã hết hạn!', 'danger'); return; }
-      if (isEditingBlog) await axios.put(`${API_BASE_URL}/api/blogs/${blogFormData._id}`, blogFormData, cfg);
-      else await axios.post(`${API_BASE_URL}/api/blogs`, blogFormData, cfg);
-      showNotification('Lưu bài viết thành công!', 'success');
+      
+      const submitData = {...blogFormData};
+      if (isEditingBlog) {
+        await axios.put(`${API_BASE_URL}/api/blogs/${submitData._id}`, submitData, cfg);
+        showNotification('Lưu bài viết thành công!', 'success');
+      } else {
+        delete submitData._id;
+        await axios.post(`${API_BASE_URL}/api/blogs`, submitData, cfg);
+        showNotification('Đăng bài mới thành công!', 'success');
+      }
       setShowBlogForm(false); setIsEditingBlog(false); fetchData();
     } catch (error) { showNotification(`Lỗi khi lưu Blog: ${error.message}`, 'danger'); }
   };
 
   const handleDeleteBlog = async (id) => {
-    Swal.fire({
-      title: 'Xóa bài viết này?',
-      text: "Hành động này không thể hoàn tác!",
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#d33',
-      cancelButtonColor: '#6c757d',
-      confirmButtonText: 'Đồng ý xóa'
-    }).then(async (result) => {
+    Swal.fire({ title: 'Xóa bài viết này?', text: "Hành động này không thể hoàn tác!", icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Đồng ý xóa' }).then(async (result) => {
       if (result.isConfirmed) {
         const cfg = getAuthHeaders();
         if (!cfg) return showNotification('Bạn chưa đăng nhập!', 'danger');
@@ -364,31 +546,12 @@ function AdminDashboard() {
     });
   };
 
-  const handleUpdateRental = async (id, currentStatus) => {
-    const newStatus = currentStatus === 'pending' ? 'processed' : 'pending';
-    try {
-      const cfg = getAuthHeaders();
-      await axios.put(`${API_BASE_URL}/api/rentals/${id}`, { status: newStatus }, cfg);
-      fetchData();
-      showNotification('Cập nhật trạng thái thành công', 'success');
-    } catch (error) { showNotification('Lỗi cập nhật', 'danger'); }
-  };
-
-  const handleDeleteRental = async (id) => {
-    Swal.fire({ title: 'Xóa yêu cầu này?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Xóa' }).then(async (result) => {
-      if (result.isConfirmed) {
-        try {
-          const cfg = getAuthHeaders();
-          await axios.delete(`${API_BASE_URL}/api/rentals/${id}`, cfg);
-          fetchData();
-          showNotification('Đã xóa yêu cầu', 'success');
-        } catch (e) { showNotification('Lỗi xóa', 'danger'); }
-      }
-    });
-  };
-
   const handleInputChange = (e) => { setFormData(prev => ({ ...prev, [e.target.name]: e.target.value })); };
-  const resetForm = () => { setFormData({ _id: '', title: '', city: '', price: '', duration: '', image: '', description: '', availableSeats: 20, startDate: '', endDate: '', category: '', featured: false }); setIsEditing(false); setShowForm(false); };
+  
+  const resetForm = () => { 
+    setFormData({ _id: '', title: '', city: '', price: '', duration: '', image: '', description: '', availableSeats: 20, startDate: '', endDate: '', category: '', featured: false }); 
+    setIsEditing(false); setShowForm(false); 
+  };
   
   const handleEditClick = (tour) => { 
     setFormData({
@@ -441,9 +604,18 @@ function AdminDashboard() {
     try {
       const cfg = getAuthHeaders();
       if (!cfg) return showNotification('Bạn chưa đăng nhập!', 'danger');
-      if (isEditing) await axios.put(`${API_BASE_URL}/api/tours/${formData._id}`, formData, cfg);
-      else await axios.post(`${API_BASE_URL}/api/tours`, formData, cfg);
-      resetForm(); fetchData(); showNotification('Lưu tour thành công!', 'success');
+      
+      const submitData = {...formData};
+      
+      if (isEditing) {
+        await axios.put(`${API_BASE_URL}/api/tours/${submitData._id}`, submitData, cfg);
+        showNotification('Cập nhật tour thành công!', 'success');
+      } else {
+        delete submitData._id; // 🔥 Xóa id rỗng để Mongoose tự sinh id mới
+        await axios.post(`${API_BASE_URL}/api/tours`, submitData, cfg);
+        showNotification('Thêm tour mới thành công!', 'success');
+      }
+      resetForm(); fetchData(); 
     } catch (error) { showNotification(`Lưu không thành công`, 'danger'); }
   };
 
@@ -462,10 +634,14 @@ function AdminDashboard() {
         const cfg = getAuthHeaders();
         if (!cfg) return showNotification('Bạn chưa đăng nhập!', 'danger');
         await axios.put(`${API_BASE_URL}/api/users/${userFormData._id}`, userFormData, cfg);
+        showNotification('Cập nhật User thành công!', 'success');
       } else {
-        await axios.post(`${API_BASE_URL}/api/auth/register`, userFormData);
+        const submitData = {...userFormData};
+        delete submitData._id;
+        await axios.post(`${API_BASE_URL}/api/auth/register`, submitData);
+        showNotification('Khởi tạo User thành công!', 'success');
       }
-      resetUserForm(); fetchData(); showNotification('Lưu User thành công!', 'success');
+      resetUserForm(); fetchData(); 
     } catch (error) { showNotification(error.response?.data?.message || 'Lỗi lưu user!', 'danger'); }
   };
 
@@ -512,25 +688,13 @@ function AdminDashboard() {
     <div className="bg-light pb-5" style={{ minHeight: '100vh' }}>
       <div className="container-fluid px-4 mt-4">
         <div className="row g-4">
-          <div className="col-12 col-lg-3 col-xl-2">
-            <div className="skeleton shadow-sm" style={{ height: '80vh', borderRadius: '15px' }}></div>
-          </div>
+          <div className="col-12 col-lg-3 col-xl-2"><div className="skeleton shadow-sm" style={{ height: '80vh', borderRadius: '15px' }}></div></div>
           <div className="col-12 col-lg-9 col-xl-10">
             <div className="skeleton mb-4" style={{ height: '40px', width: '30%', borderRadius: '8px' }}></div>
             <div className="row g-4 mb-4">
               {[1, 2, 3].map(i => (
-                <div key={i} className="col-md-4">
-                  <div className="skeleton shadow-sm" style={{ height: '120px', borderRadius: '15px' }}></div>
-                </div>
+                <div key={i} className="col-md-4"><div className="skeleton shadow-sm" style={{ height: '120px', borderRadius: '15px' }}></div></div>
               ))}
-            </div>
-            <div className="row g-4">
-              <div className="col-md-6">
-                <div className="skeleton shadow-sm" style={{ height: '350px', borderRadius: '15px' }}></div>
-              </div>
-              <div className="col-md-6">
-                <div className="skeleton shadow-sm" style={{ height: '350px', borderRadius: '15px' }}></div>
-              </div>
             </div>
           </div>
         </div>
@@ -543,6 +707,7 @@ function AdminDashboard() {
       <style>{`
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1050; display: flex; justify-content: center; align-items: center; } 
         .modal-box { background: white; border-radius: 16px; width: 90%; max-width: 500px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.2); animation: scaleIn 0.3s ease; } @keyframes scaleIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .table-warning-light { background-color: #fffbeb !important; }
       `}</style>
       
       <div className="container-fluid px-4 mt-4">
@@ -555,9 +720,7 @@ function AdminDashboard() {
                 <div className={`rounded-circle d-flex align-items-center justify-content-center mx-auto mb-2 ${userRole === 'admin' ? 'bg-danger' : 'bg-info'}`} style={{width:'50px', height:'50px'}}>
                   <i className={`bi fs-3 text-white ${userRole === 'admin' ? 'bi-shield-lock-fill' : 'bi-person-badge'}`}></i>
                 </div>
-                <h6 className="fw-bold mb-0 small">
-                  {userRole === 'admin' ? 'HỆ THỐNG QUẢN TRỊ' : 'TRANG NHÂN VIÊN'}
-                </h6>
+                <h6 className="fw-bold mb-0 small">{userRole === 'admin' ? 'HỆ THỐNG QUẢN TRỊ' : 'TRANG NHÂN VIÊN'}</h6>
                 <span className="badge bg-secondary mt-2">{userRole === 'admin' ? 'Admin' : 'Staff'}</span>
               </div>
               <div className="py-2">
@@ -616,7 +779,6 @@ function AdminDashboard() {
                     </div>
                   </div>
                 </div>
-
               </div>
             )}
 
@@ -628,12 +790,8 @@ function AdminDashboard() {
                   <div className="d-flex gap-2">
                     {(userRole === 'admin' || userRole === 'staff') && (
                       <>
-                        <button className="btn btn-outline-success rounded-pill px-3 shadow-sm fw-bold" onClick={exportToursToExcel}>
-                          <i className="bi bi-file-earmark-excel-fill me-1"></i> Xuất Excel
-                        </button>
-                        <button className="btn btn-info text-white rounded-pill px-4 shadow-sm" onClick={() => setShowForm(!showForm)}>
-                          {showForm ? 'Đóng form' : '+ Thêm mới'}
-                        </button>
+                        <button className="btn btn-outline-success rounded-pill px-3 shadow-sm fw-bold" onClick={exportToursToExcel}><i className="bi bi-file-earmark-excel-fill me-1"></i> Xuất Excel</button>
+                        <button className="btn btn-info text-white rounded-pill px-4 shadow-sm" onClick={() => setShowForm(!showForm)}>{showForm ? 'Đóng form' : '+ Thêm mới'}</button>
                       </>
                     )}
                   </div>
@@ -650,30 +808,16 @@ function AdminDashboard() {
                         <div className="col-md-3"><label className="small fw-bold">Thời lượng tour</label><input type="text" className="form-control" name="duration" value={formData.duration || ''} onChange={handleInputChange} placeholder="VD: 3 ngày 2 đêm" required /></div>
                         <div className="col-md-3"><label className="small fw-bold">Ghế trống</label><input type="number" className="form-control" name="availableSeats" value={formData.availableSeats || ''} onChange={handleInputChange} required /></div>
                         <div className="col-md-3"><label className="small fw-bold">Danh mục</label><select className="form-select" name="category" value={formData.category || ''} onChange={handleInputChange} required><option value="">-- Chọn danh mục --</option>{availableCategories.map((cat) => (<option key={cat} value={cat}>{cat}</option>))}</select></div>
-                        <div className="col-md-6"><label className="small fw-bold">Ngày khởi hành</label><input type="text" className="form-control" name="startDate" value={formData.startDate || ''} onChange={handleInputChange} placeholder="VD: Thứ 7 hàng tuần" required /></div>
-                        <div className="col-md-6"><label className="small fw-bold">Ngày kết thúc</label><input type="text" className="form-control" name="endDate" value={formData.endDate || ''} onChange={handleInputChange} placeholder="VD: Chủ nhật hàng tuần" required /></div>
+                        <div className="col-md-6"><label className="small fw-bold">Ngày khởi hành</label><input type="text" className="form-control" name="startDate" value={formData.startDate || ''} onChange={handleInputChange} required /></div>
+                        <div className="col-md-6"><label className="small fw-bold">Ngày kết thúc</label><input type="text" className="form-control" name="endDate" value={formData.endDate || ''} onChange={handleInputChange} required /></div>
                         
-                        {/* ========================================================================= */}
-                        {/* ⚡ ĐÃ THAY THẾ: Ô CHỌN FILE ẢNH TRỰC TIẾP TỪ LAPTOP CHO TOUR */}
-                        {/* ========================================================================= */}
                         <div className="col-md-12">
                           <label className="small fw-bold text-primary"><i className="bi bi-folder2-open me-1"></i> Tải ảnh từ thiết bị của bạn</label>
-                          <input 
-                            type="file" 
-                            className="form-control border-info" 
-                            accept="image/*" 
-                            onChange={handleTourFileChange} 
-                          />
+                          <input type="file" className="form-control border-info" accept="image/*" onChange={handleTourFileChange} />
                           {formData.image && (
                             <div className="mt-3">
                               <span className="small text-muted d-block mb-1">Hình ảnh đang chọn:</span>
-                              <img 
-                                src={formData.image.startsWith('data:') ? formData.image : (formData.image.includes('/') ? resolveImageUrl(formData.image) : `/assets/img/index/${formData.image}`)} 
-                                alt="Preview" 
-                                className="rounded shadow-sm border border-secondary" 
-                                style={{width:'150px', height:'100px', objectFit:'cover'}} 
-                                onError={(e) => {e.target.style.display='none'}} 
-                              />
+                              <img src={formData.image.startsWith('data:') ? formData.image : (formData.image.includes('/') ? resolveImageUrl(formData.image) : `/assets/img/index/${formData.image}`)} alt="Preview" className="rounded shadow-sm border border-secondary" style={{width:'150px', height:'100px', objectFit:'cover'}} onError={(e) => {e.target.style.display='none'}} />
                             </div>
                           )}
                         </div>
@@ -694,24 +838,12 @@ function AdminDashboard() {
                     <tbody>
                       {filteredTours.map(t => (
                         <tr key={t._id}>
-                          <td>
-                            <img 
-                              src={t.image?.startsWith('data:') ? t.image : resolveImageUrl(t.image)} 
-                              className="rounded" 
-                              style={{width:'50px', height:'35px', objectFit:'cover'}} 
-                            />
-                          </td>
+                          <td><img src={t.image?.startsWith('data:') ? t.image : resolveImageUrl(t.image)} className="rounded" style={{width:'50px', height:'35px', objectFit:'cover'}} /></td>
                           <td className="fw-bold">{t.title || 'Tour không tên'}</td>
-                          <td className="text-muted small">
-                            Khởi hành: <strong className="text-dark">{t.startDate || '---'}</strong><br/>
-                            Kết thúc: <strong className="text-dark">{t.endDate || '---'}</strong><br/>
-                            Chỗ trống: <strong className="text-danger">{t.availableSeats || 0}</strong> ghế
-                          </td>
-                          <td>
-                            <span className={`badge ${t.availableSeats > 0 ? 'bg-success' : 'bg-danger'}`}>{t.availableSeats > 0 ? 'Còn chỗ' : 'Đã Đầy'}</span>
-                          </td>
+                          <td className="text-muted small">Khởi hành: <strong>{t.startDate || '---'}</strong><br/>Ghế trống: <strong className="text-danger">{t.availableSeats || 0}</strong> ghế</td>
+                          <td><span className={`badge ${t.availableSeats > 0 ? 'bg-success' : 'bg-danger'}`}>{t.availableSeats > 0 ? 'Còn chỗ' : 'Đã Đầy'}</span></td>
                           <td className="text-center">
-                            <button className="btn btn-sm btn-info text-white rounded-pill me-2" onClick={() => handleViewTour(t)} title="Xem chi tiết tour"><i className="bi bi-eye"></i> Xem</button>
+                            <button className="btn btn-info text-white rounded-pill me-2" onClick={() => handleViewTour(t)}><i className="bi bi-eye"></i> Xem</button>
                             {(userRole === 'admin' || userRole === 'staff') && (
                               <>
                                 <button className="btn btn-sm btn-outline-primary me-2" onClick={() => handleEditClick(t)}><i className="bi bi-pencil"></i></button>
@@ -740,19 +872,11 @@ function AdminDashboard() {
                         <label className="small fw-bold">Chọn Tour</label>
                         <select className="form-select" name="tourId" value={staffBookingForm.tourId || ''} onChange={handleStaffBookingInputChange} required>
                           <option value="">-- Chọn tour --</option>
-                          {tours.map(t => (
-                            <option key={t._id} value={t._id}>{t.title} - {t.city} ({Number(t.price || 0).toLocaleString()}đ)</option>
-                          ))}
+                          {tours.map(t => <option key={t._id} value={t._id}>{t.title} - {t.city || ''} ({Number(t.price || 0).toLocaleString()}đ)</option>)}
                         </select>
                       </div>
-                      <div className="col-md-3">
-                        <label className="small fw-bold">Số khách</label>
-                        <input type="number" className="form-control" name="guestSize" min="1" value={staffBookingForm.guestSize || ''} onChange={handleStaffBookingInputChange} required />
-                      </div>
-                      <div className="col-md-3">
-                        <label className="small fw-bold">Tổng tiền (VNĐ)</label>
-                        <input type="text" readOnly className="form-control" value={staffBookingForm.totalPrice ? staffBookingForm.totalPrice.toLocaleString() + ' đ' : '0 đ'} />
-                      </div>
+                      <div className="col-md-3"><label className="small fw-bold">Số khách</label><input type="number" className="form-control" name="guestSize" min="1" value={staffBookingForm.guestSize || ''} onChange={handleStaffBookingInputChange} required /></div>
+                      <div className="col-md-3"><label className="small fw-bold">Tổng tiền (VNĐ)</label><input type="text" readOnly className="form-control" value={staffBookingForm.totalPrice ? staffBookingForm.totalPrice.toLocaleString() + ' đ' : '0 đ'} /></div>
                       <div className="col-md-6"><label className="small fw-bold">Tên khách</label><input type="text" className="form-control" name="name" value={staffBookingForm.name || ''} onChange={handleStaffBookingInputChange} required /></div>
                       <div className="col-md-3"><label className="small fw-bold">Điện thoại</label><input type="text" className="form-control" name="phone" value={staffBookingForm.phone || ''} onChange={handleStaffBookingInputChange} required /></div>
                       <div className="col-md-3"><label className="small fw-bold">Email</label><input type="email" className="form-control" name="email" value={staffBookingForm.email || ''} onChange={handleStaffBookingInputChange} /></div>
@@ -764,37 +888,30 @@ function AdminDashboard() {
                   </div>
                 )}
 
-              <div className="card border-0 shadow-sm rounded-4 p-4 overflow-hidden">
-                <div className="d-flex justify-content-between align-items-center mb-4">
-                  <h4 className="fw-bold mb-0">Danh sách Đoàn / Khách đặt</h4>
-                  <button className="btn btn-outline-success rounded-pill px-3 shadow-sm fw-bold" onClick={exportBookingsToExcel}>
-                    <i className="bi bi-file-earmark-excel-fill me-1"></i> Xuất Excel
-                  </button>
-                </div>
-                <div className="table-responsive">
+                <div className="card border-0 shadow-sm rounded-4 p-4 overflow-hidden">
+                  <div className="d-flex justify-content-between align-items-center mb-4">
+                    <h4 className="fw-bold mb-0">Danh sách Đoàn / Khách đặt</h4>
+                    <button className="btn btn-outline-success rounded-pill px-3 shadow-sm fw-bold" onClick={exportBookingsToExcel}><i className="bi bi-file-earmark-excel-fill me-1"></i> Xuất Excel</button>
+                  </div>
                   <table className="table table-hover align-middle small mb-0">
                     <thead className="table-light text-muted"><tr><th>MÃ ĐƠN</th><th>THÔNG TIN KHÁCH/ĐOÀN</th><th>TOUR</th><th>TIỀN</th><th>TRẠNG THÁI</th><th className="text-center">CẬP NHẬT TRẠNG THÁI</th></tr></thead>
                     <tbody>
                       {filteredBookings.map(b => (
                         <tr key={b._id}>
                           <td className="fw-bold">#{String(b._id).substring(18).toUpperCase()}</td>
-                          <td>
-                            <div className="fw-bold text-primary">{b.userId?.name || b.name || 'Khách vãng lai'}</div>
-                            <div className="text-muted" style={{fontSize: '11px'}}><i className="bi bi-telephone-fill me-1"></i>{b.userId?.phone || b.phone || 'N/A'}</div>
-                          </td>
-                          <td className="text-truncate" style={{maxWidth: '180px'}}>{b.tourId?.title || 'Tour đã bị xóa hoặc không rõ'}</td>
+                          <td><div className="fw-bold text-primary">{b.userId?.name || b.name || 'Khách vãng lai'}</div><div className="text-muted"><i className="bi bi-telephone-fill me-1"></i>{b.userId?.phone || b.phone || 'N/A'}</div></td>
+                          <td>{b.tourId?.title || 'Tour đã bị xóa'}</td>
                           <td className="fw-bold text-danger">{Number(b.totalPrice || 0).toLocaleString()}đ</td>
                           <td><span className={`badge rounded-pill px-3 py-2 ${b.status === 'paid' ? 'bg-success' : b.status === 'cancelled' ? 'bg-danger' : 'bg-warning text-dark'}`}>{b.status === 'paid' ? 'Đã Thanh Toán' : b.status === 'cancelled' ? 'Đã hủy' : 'Chờ xử lý'}</span></td>
-                          
                           <td className="text-center">
                             <div className="d-flex justify-content-center gap-1">
                               {b.status !== 'paid' && b.status !== 'cancelled' && (
                                 <>
-                                  <button className="btn btn-sm btn-success rounded-pill" onClick={() => handleUpdateStatus(b._id, 'paid')} title="Đánh dấu Hoàn Tất"><i className="bi bi-check-lg"></i></button>
-                                  <button className="btn btn-sm btn-danger rounded-pill" onClick={() => handleUpdateStatus(b._id, 'cancelled')} title="Hủy đơn"><i className="bi bi-x-lg"></i></button>
+                                  <button className="btn btn-sm btn-success rounded-pill" onClick={() => handleUpdateStatus(b._id, 'paid')}><i className="bi bi-check-lg"></i></button>
+                                  <button className="btn btn-sm btn-danger rounded-pill" onClick={() => handleUpdateStatus(b._id, 'cancelled')}><i className="bi bi-x-lg"></i></button>
                                 </>
                               )}
-                              <button className="btn btn-sm btn-info text-white rounded-pill" onClick={() => setSelectedBooking(b)} title="Xem chi tiết Đoàn"><i className="bi bi-eye"></i></button>
+                              <button className="btn btn-sm btn-info text-white rounded-pill" onClick={() => setSelectedBooking(b)}><i className="bi bi-eye"></i></button>
                             </div>
                           </td>
                         </tr>
@@ -802,7 +919,6 @@ function AdminDashboard() {
                     </tbody>
                   </table>
                 </div>
-              </div>
               </div>
             )}
 
@@ -812,24 +928,18 @@ function AdminDashboard() {
                 <div className="d-flex justify-content-between align-items-center mb-4">
                   <h4 className="fw-bold mb-0">Phân quyền & Quản lý Người dùng</h4>
                   <div className="d-flex gap-2">
-                    <button className="btn btn-outline-success rounded-pill px-3 shadow-sm fw-bold" onClick={exportUsersToExcel}>
-                      <i className="bi bi-file-earmark-excel-fill me-1"></i> Xuất Excel
-                    </button>
-                    <button className="btn btn-info text-white rounded-pill px-4 shadow-sm" onClick={() => {setShowUserForm(!showUserForm); setIsEditingUser(false); setUserFormData({ _id: '', name: '', email: '', phone: '', password: '', role: 'user' })}}>
-                      {showUserForm ? 'Đóng form' : '+ Thêm Tài khoản'}
-                    </button>
+                    <button className="btn btn-outline-success rounded-pill px-3 shadow-sm fw-bold" onClick={exportUsersToExcel}><i className="bi bi-file-earmark-excel-fill me-1"></i> Xuất Excel</button>
+                    <button className="btn btn-info text-white rounded-pill px-4 shadow-sm" onClick={() => {setShowUserForm(!showUserForm); setIsEditingUser(false); setUserFormData({ _id: '', name: '', email: '', phone: '', password: '', role: 'user' })}}>{showUserForm ? 'Đóng form' : '+ Thêm Tài khoản'}</button>
                   </div>
                 </div>
 
                 {showUserForm && (
                   <div className="card border-0 shadow-sm p-4 mb-4 rounded-4 border-top border-info border-4">
-                    <h5 className="fw-bold mb-3">{isEditingUser ? 'Cập nhật Quyền' : 'Cấp Tài khoản mới'}</h5>
                     <form onSubmit={handleSubmitUser}>
                       <div className="row g-3">
                         <div className="col-md-6"><label className="small fw-bold">Họ tên</label><input type="text" className="form-control" name="name" value={userFormData.name || ''} onChange={handleUserInputChange} required /></div>
                         <div className="col-md-6"><label className="small fw-bold">Email</label><input type="email" className="form-control" name="email" value={userFormData.email || ''} onChange={handleUserInputChange} disabled={isEditingUser} required /></div>
                         <div className="col-md-6"><label className="small fw-bold">Số điện thoại</label><input type="text" className="form-control" name="phone" value={userFormData.phone || ''} onChange={handleUserInputChange} /></div>
-                        
                         <div className="col-md-3">
                           <label className="small fw-bold">Phân quyền</label>
                           <select className="form-select border-info" name="role" value={userFormData.role || 'user'} onChange={handleUserInputChange}>
@@ -838,7 +948,6 @@ function AdminDashboard() {
                             <option value="admin">Quản trị viên (Admin)</option>
                           </select>
                         </div>
-
                         {!isEditingUser && <div className="col-md-3"><label className="small fw-bold">Mật khẩu</label><input type="password" className="form-control" name="password" value={userFormData.password || ''} onChange={handleUserInputChange} required /></div>}
                       </div>
                       <button type="submit" className="btn btn-info text-white mt-4 rounded-pill px-5 fw-bold shadow-sm">{isEditingUser ? 'Cập nhật' : 'Khởi tạo Tài khoản'}</button>
@@ -848,18 +957,14 @@ function AdminDashboard() {
 
                 <div className="card border-0 shadow-sm rounded-4 overflow-hidden">
                   <table className="table table-hover align-middle mb-0">
-                    <thead className="table-light small"><tr><th>STT</th><th>HỌ TÊN</th><th>EMAIL</th><th>PHÂN QUYỀN</th><th className="text-center">THAO TÁC</th></tr></thead>
+                    <thead className="table-light text-muted small"><tr><th>STT</th><th>HỌ TÊN</th><th>EMAIL</th><th>PHÂN QUYỀN</th><th className="text-center">THAO TÁC</th></tr></thead>
                     <tbody>
                       {filteredUsers.map((u, i) => (
                         <tr key={u._id}>
-                          <td className="text-muted">{i + 1}</td>
+                          <td>{i + 1}</td>
                           <td className="fw-bold">{u.name || 'N/A'}</td>
-                          <td className="small">{u.email || 'N/A'}</td>
-                          <td>
-                            <span className={`badge px-3 py-2 rounded-pill ${u.role === 'admin' ? 'bg-danger' : u.role === 'staff' ? 'bg-primary' : 'bg-secondary'}`}>
-                              {u.role === 'admin' ? 'Admin' : u.role === 'staff' ? 'Nhân viên' : 'Khách hàng'}
-                            </span>
-                          </td>
+                          <td>{u.email || 'N/A'}</td>
+                          <td><span className={`badge px-3 py-2 rounded-pill ${u.role === 'admin' ? 'bg-danger' : u.role === 'staff' ? 'bg-primary' : 'bg-secondary'}`}>{u.role === 'admin' ? 'Admin' : u.role === 'staff' ? 'Nhân viên' : 'Khách hàng'}</span></td>
                           <td className="text-center">
                             <button className="btn btn-sm btn-outline-primary me-2 rounded-circle" onClick={() => handleEditUserClick(u)}><i className="bi bi-pencil"></i></button>
                             <button className="btn btn-sm btn-outline-danger rounded-circle" onClick={() => handleDeleteUser(u._id)}><i className="bi bi-trash"></i></button>
@@ -877,9 +982,7 @@ function AdminDashboard() {
               <div className="animation-fade-in">
                 <div className="d-flex justify-content-between align-items-center mb-4">
                   <h4 className="fw-bold mb-0">Quản lý bài viết Blog</h4>
-                  <button className="btn btn-info text-white rounded-pill px-4" onClick={() => {setShowBlogForm(!showBlogForm); setIsEditingBlog(false); setBlogFormData({title:'', content:'', image:'', category:'Cẩm Nang Du Lịch', featured:false})}}>
-                    {showBlogForm ? 'Đóng' : '+ Viết bài mới'}
-                  </button>
+                  <button className="btn btn-info text-white rounded-pill px-4" onClick={() => {setShowBlogForm(!showBlogForm); setIsEditingBlog(false); setBlogFormData({title:'', content:'', image:'', category:'Cẩm Nang Du Lịch', featured:false})}}>{showBlogForm ? 'Đóng' : '+ Viết bài mới'}</button>
                 </div>
                 {showBlogForm && (
                   <div className="card border-0 shadow-sm p-4 mb-4 rounded-4 border-top border-info border-4">
@@ -887,31 +990,10 @@ function AdminDashboard() {
                       <div className="row g-3">
                         <div className="col-md-8"><label className="small fw-bold">Tiêu đề bài viết</label><input type="text" className="form-control" name="title" value={blogFormData.title || ''} onChange={handleBlogInputChange} required /></div>
                         <div className="col-md-4"><label className="small fw-bold">Danh mục</label><select className="form-select" name="category" value={blogFormData.category || ''} onChange={handleBlogInputChange}><option value="Cẩm Nang Du Lịch">Cẩm Nang Du Lịch</option><option value="Kinh nghiệm">Kinh nghiệm</option><option value="Tin tức">Tin tức</option></select></div>
-                        
-                        {/* ========================================================================= */}
-                        {/* ⚡ ĐÃ THAY THẾ: Ô CHỌN FILE ẢNH TRỰC TIẾP TỪ LAPTOP CHO BLOG */}
-                        {/* ========================================================================= */}
                         <div className="col-md-12">
                           <label className="small fw-bold text-primary"><i className="bi bi-image-fill me-1"></i> Tải ảnh bìa bài viết từ laptop</label>
-                          <input 
-                            type="file" 
-                            className="form-control border-info" 
-                            accept="image/*" 
-                            onChange={handleBlogFileChange} 
-                          />
-                          {blogFormData.image && (
-                            <div className="mt-3">
-                              <span className="small text-muted d-block mb-1">Ảnh bìa đang chọn:</span>
-                              <img 
-                                src={blogFormData.image} 
-                                alt="Preview" 
-                                className="rounded shadow-sm border border-secondary" 
-                                style={{width:'150px', height:'100px', objectFit:'cover'}} 
-                              />
-                            </div>
-                          )}
+                          <input type="file" className="form-control border-info" accept="image/*" onChange={handleBlogFileChange} />
                         </div>
-
                         <div className="col-12"><label className="small fw-bold">Nội dung bài viết</label><textarea className="form-control" name="content" rows="5" value={blogFormData.content || ''} onChange={handleBlogInputChange} required></textarea></div>
                       </div>
                       <button type="submit" className="btn btn-info text-white w-100 mt-3 rounded-pill fw-bold">ĐĂNG BÀI</button>
@@ -924,15 +1006,9 @@ function AdminDashboard() {
                     <tbody>
                       {filteredBlogs.map(b => (
                         <tr key={b._id}>
-                          <td>
-                            <img 
-                              src={b.image} 
-                              className="rounded" 
-                              style={{width:'50px', height:'35px', objectFit:'cover'}} 
-                            />
-                          </td>
-                          <td className="fw-bold text-truncate" style={{maxWidth:'300px'}}>{b.title || 'Bài viết không tên'}</td>
-                          <td><span className="badge bg-light text-dark">{b.category || 'Không rõ'}</span></td>
+                          <td><img src={b.image} className="rounded" style={{width:'50px', height:'35px', objectFit:'cover'}} /></td>
+                          <td className="fw-bold text-truncate" style={{maxWidth:'300px'}}>{b.title || ''}</td>
+                          <td><span className="badge bg-light text-dark">{b.category || ''}</span></td>
                           <td>{b.createdAt ? new Date(b.createdAt).toLocaleDateString('vi-VN') : '---'}</td>
                           <td className="text-center">
                             <button className="btn btn-sm btn-outline-primary me-2" onClick={() => handleEditBlogClick(b)}><i className="bi bi-pencil"></i></button>
@@ -966,46 +1042,193 @@ function AdminDashboard() {
                           </td>
                         </tr>
                       ))}
-                      {reviews.length === 0 && <tr><td colSpan="6" className="text-center py-4 text-muted">Chưa có bình luận nào để quản lý.</td></tr>}
                     </tbody>
                   </table>
                 </div>
               </div>
             )}
 
-            {/* QUẢN LÝ YÊU CẦU THUÊ XE */}
+            {/* --- 🔥 TAB QUẢN LÝ YÊU CẦU THUÊ XE --- */}
             {activeTab === 'rentals' && (userRole === 'admin' || userRole === 'staff') && (
-              <div className="animation-fade-in card border-0 shadow-sm rounded-4 p-4">
-                <h4 className="fw-bold mb-4"><i className="bi bi-car-front text-info me-2"></i>Quản lý Yêu cầu Thuê xe</h4>
-                <div className="table-responsive">
-                  <table className="table table-hover align-middle mb-0">
-                    <thead className="table-light"><tr><th>NGÀY GỬI</th><th>KHÁCH HÀNG</th><th>DÒNG XE</th><th>NGÀY ĐI</th><th>TRẠNG THÁI</th><th className="text-center">HÀNH ĐỘNG</th></tr></thead>
-                    <tbody>
-                      {rentals.map(r => (
-                        <tr key={r._id}>
-                          <td className="small text-muted">{new Date(r.createdAt).toLocaleDateString('vi-VN')}</td>
-                          <td>
-                            <div className="fw-bold text-dark">{r.name}</div>
-                            <div className="small text-muted"><i className="bi bi-telephone-fill me-1"></i>{r.phone}</div>
-                          </td>
-                          <td className="fw-bold text-primary">{r.carType}</td>
-                          <td className="text-danger fw-bold">{r.date}</td>
-                          <td>
-                            <span className={`badge rounded-pill px-3 py-2 ${r.status === 'processed' ? 'bg-success' : 'bg-warning text-dark'}`}>
-                              {r.status === 'processed' ? 'Đã liên hệ' : 'Chờ gọi điện'}
-                            </span>
-                          </td>
-                          <td className="text-center">
-                            <button className={`btn btn-sm me-2 rounded-circle ${r.status === 'processed' ? 'btn-outline-secondary' : 'btn-success'}`} onClick={() => handleUpdateRental(r._id, r.status)} title="Đổi trạng thái">
-                              <i className="bi bi-check2-all"></i>
-                            </button>
-                            <button className="btn btn-sm btn-outline-danger rounded-circle" onClick={() => handleDeleteRental(r._id)}><i className="bi bi-trash"></i></button>
-                          </td>
+              <div className="animation-fade-in">
+                <div className="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center mb-4 gap-2">
+                  <h4 className="fw-bold mb-0"><i className="bi bi-car-front text-info me-2"></i>Quản lý Yêu cầu Thuê xe</h4>
+                  
+                  <div className="d-flex gap-2 align-items-center">
+                    <select 
+                      className="form-select form-select-sm border-info rounded-pill px-3 fw-bold text-dark" style={{width: '200px'}}
+                      value={rentalFilter} onChange={(e) => setRentalFilter(e.target.value)}
+                    >
+                      <option value="all">Tất cả trạng thái</option>
+                      <option value="pending">Chờ gọi điện tư vấn ⏳</option>
+                      <option value="processed">Đã liên hệ xử lý ✅</option>
+                    </select>
+                    
+                    <button className="btn btn-sm btn-info text-white rounded-pill px-3 shadow-sm fw-bold" onClick={() => { setShowRentalForm(!showRentalForm); setIsEditingRental(false); if(showRentalForm) resetRentalForm(); }}>
+                      {showRentalForm ? 'Đóng phom' : '+ Thêm phiếu xe'}
+                    </button>
+                  </div>
+                </div>
+
+                {showRentalForm && (
+                  <div className="card border-0 shadow-sm p-4 mb-4 rounded-4 border-top border-info border-4 animation-fade-in">
+                    <h5 className="fw-bold mb-3 text-info">{isEditingRental ? '✏️ Cập nhật phiếu thuê xe' : '🚗 Nhập phiếu đặt xe trực tiếp qua tổng đài (Hotline)'}</h5>
+                    <form onSubmit={handleSubmitRental}>
+                      <div className="row g-3">
+                        <div className="col-md-4"><label className="small fw-bold">Tên khách hàng *</label><input type="text" className="form-control" name="name" value={rentalFormData.name || ''} onChange={handleRentalInputChange} required /></div>
+                        <div className="col-md-4"><label className="small fw-bold">Số điện thoại *</label><input type="tel" className="form-control" name="phone" value={rentalFormData.phone || ''} onChange={handleRentalInputChange} required /></div>
+                        <div className="col-md-4"><label className="small fw-bold">Địa chỉ Email *</label><input type="email" className="form-control" name="email" value={rentalFormData.email || ''} onChange={handleRentalInputChange} required /></div>
+                        
+                        <div className="col-md-6"><label className="small fw-bold">Lộ trình / Điểm đến *</label><input type="text" className="form-control" name="destination" placeholder="VD: Đi Vũng Tàu..." value={rentalFormData.destination || ''} onChange={handleRentalInputChange} required /></div>
+                        <div className="col-md-3">
+                          <label className="small fw-bold">Dòng xe đăng ký</label>
+                          <select className="form-select" name="carType" value={rentalFormData.carType || 'Xe 16 Chỗ'} onChange={handleRentalInputChange}>
+                            <option value="Xe 4 - 7 Chỗ">Xe 4 - 7 Chỗ</option>
+                            <option value="Xe 16 Chỗ">Xe 16 Chỗ</option>
+                            <option value="Xe 29 - 45 Chỗ">Xe 29 - 45 Chỗ</option>
+                          </select>
+                        </div>
+                        <div className="col-md-3">
+                          <label className="small fw-bold">Hình thức dịch vụ</label>
+                          <select className="form-select" name="rentalType" value={rentalFormData.rentalType || 'driver'} onChange={handleRentalInputChange}>
+                            <option value="driver">Cần tài xế phục vụ</option>
+                            <option value="self">Thuê xe tự lái</option>
+                          </select>
+                        </div>
+
+                        <div className="col-md-6"><label className="small fw-bold">Ngày khởi hành *</label><input type="date" className="form-control" name="date" value={rentalFormData.date || ''} onChange={handleRentalInputChange} required /></div>
+                        <div className="col-md-6"><label className="small fw-bold">Ngày kết thúc thuê *</label><input type="date" className="form-control" name="endDate" value={rentalFormData.endDate || ''} onChange={handleRentalInputChange} required /></div>
+                      </div>
+                      <div className="d-flex gap-2 mt-4 justify-content-end">
+                        <button type="button" className="btn btn-outline-secondary rounded-pill px-4" onClick={resetRentalForm}>Hủy bỏ</button>
+                        <button type="submit" className="btn btn-info text-white rounded-pill px-5 fw-bold">{isEditingRental ? 'Cập nhật phiếu' : 'Lưu thông tin'}</button>
+                      </div>
+                    </form>
+                  </div>
+                )}
+
+                <div className="card border-0 shadow-sm rounded-4 overflow-hidden">
+                  <div className="table-responsive">
+                    <table className="table table-hover align-middle mb-0">
+                      <thead className="table-light">
+                        <tr>
+                          <th>NGÀY GỬI</th>
+                          <th>KHÁCH HÀNG</th>
+                          <th>CHI TIẾT XE & LỘ TRÌNH</th>
+                          <th>THỜI GIAN</th>
+                          <th>TRẠNG THÁI</th>
+                          <th className="text-center">HÀNH ĐỘNG</th>
                         </tr>
-                      ))}
-                      {rentals.length === 0 && <tr><td colSpan="6" className="text-center py-4 text-muted">Chưa có yêu cầu thuê xe nào.</td></tr>}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {rentals
+                          .filter(r => rentalFilter === 'all' ? true : r.status === rentalFilter)
+                          .map(r => (
+                            <tr key={r._id} className={r.status === 'pending' ? 'table-warning-light' : ''}>
+                              <td className="small text-muted">{new Date(r.createdAt).toLocaleDateString('vi-VN')}</td>
+                              <td>
+                                <div className="fw-bold text-dark">{r.name || ''}</div>
+                                <div className="small text-muted mb-1"><i className="bi bi-telephone-fill me-1"></i>{r.phone || ''}</div>
+                                <div style={{fontSize:'11px'}} className="text-muted"><i className="bi bi-envelope-at me-1"></i>{r.email || 'N/A'}</div>
+                              </td>
+                              <td>
+                                <span className="badge bg-primary mb-1">{r.carType || ''}</span> <br/>
+                                <small className="fw-bold text-secondary">Lộ trình: </small><span className="small">{r.destination || 'Nội thành'}</span> <br/>
+                                <small className="fw-bold text-secondary">Hình thức: </small><span className="small text-info fw-bold">{r.rentalType === 'self' ? 'Tự lái' : 'Có tài xế'}</span>
+                              </td>
+                              <td className="small">
+                                Đi: <strong>{r.date || ''}</strong> <br/>
+                                Về: <strong>{r.endDate || 'Trong ngày'}</strong>
+                              </td>
+                              <td><span className={`badge rounded-pill px-3 py-2 ${r.status === 'processed' ? 'bg-success' : 'bg-warning text-dark'}`}>{r.status === 'processed' ? 'Đã liên hệ' : 'Chờ gọi điện'}</span></td>
+                              <td className="text-center">
+                                <div className="d-flex justify-content-center gap-1">
+                                  <button className={`btn btn-sm rounded-circle ${r.status === 'processed' ? 'btn-outline-secondary' : 'btn-success text-white'}`} onClick={() => handleUpdateRental(r._id, r.status)} title="Duyệt trạng thái"><i className="bi bi-check2-all"></i></button>
+                                  <button className="btn btn-sm btn-outline-primary rounded-circle" onClick={() => handleEditRentalClick(r)} title="Sửa"><i className="bi bi-pencil"></i></button>
+                                  <button className="btn btn-sm btn-outline-danger rounded-circle" onClick={() => handleDeleteRental(r._id)} title="Xóa"><i className="bi bi-trash"></i></button>
+                                </div>
+                              </td>
+                            </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* --- 🚗 TAB QUẢN LÝ XE KHO XE --- */}
+            {activeTab === 'cars' && (userRole === 'admin' || userRole === 'staff') && (
+              <div className="animation-fade-in">
+                <div className="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center mb-4 gap-2">
+                  <h4 className="fw-bold mb-0"><i className="bi bi-car-front text-success me-2"></i>Quản lý Xe</h4>
+                  <button className="btn btn-sm btn-success text-white rounded-pill px-3 shadow-sm fw-bold" onClick={() => { setShowCarForm(!showCarForm); setIsEditingCar(false); if(showCarForm) resetCarForm(); }}>
+                    {showCarForm ? 'Đóng form' : '+ Thêm xe mới'}
+                  </button>
+                </div>
+
+                {showCarForm && (
+                  <div className="card border-0 shadow-sm p-4 mb-4 rounded-4 border-top border-success border-4 animation-fade-in">
+                    <h5 className="fw-bold mb-3 text-success">{isEditingCar ? '✏️ Cập nhật thông tin xe' : '🚗 Thêm xe mới vào hệ thống'}</h5>
+                    <form onSubmit={handleSubmitCar}>
+                      <div className="row g-3">
+                        <div className="col-md-4"><label className="small fw-bold">Tên xe *</label><input type="text" className="form-control" name="name" value={carFormData.name || ''} onChange={handleCarInputChange} required /></div>
+                        <div className="col-md-4"><label className="small fw-bold">Loại xe *</label><input type="text" className="form-control" name="carType" placeholder="VD: Van, Sedan, Bus" value={carFormData.carType || ''} onChange={handleCarInputChange} required /></div>
+                        <div className="col-md-4"><label className="small fw-bold">Biển số xe *</label><input type="text" className="form-control" name="licensePlate" placeholder="VD: 30A-12345" value={carFormData.licensePlate || ''} onChange={handleCarInputChange} required /></div>
+                        
+                        <div className="col-md-3"><label className="small fw-bold">Số ghế *</label><input type="number" className="form-control" name="seats" min="1" value={carFormData.seats || 16} onChange={handleCarInputChange} required /></div>
+                        <div className="col-md-3"><label className="small fw-bold">Giá/ngày (VNĐ) *</label><input type="number" className="form-control" name="pricePerDay" min="0" value={carFormData.pricePerDay || ''} onChange={handleCarInputChange} required /></div>
+                        <div className="col-md-3"><label className="small fw-bold">Hãng sản xuất</label><input type="text" className="form-control" name="manufacturer" value={carFormData.manufacturer || ''} onChange={handleCarInputChange} /></div>
+                        <div className="col-md-3"><label className="small fw-bold">Năm sản xuất</label><input type="number" className="form-control" name="yearManufactured" value={carFormData.yearManufactured || new Date().getFullYear()} onChange={handleCarInputChange} /></div>
+                        
+                        <div className="col-md-12"><label className="small fw-bold">Mô tả xe</label><textarea className="form-control" name="description" rows="2" placeholder="Mô tả chi tiết về xe..." value={carFormData.description || ''} onChange={handleCarInputChange}></textarea></div>
+                        <div className="col-md-12"><label className="small fw-bold">Hình ảnh xe</label><input type="file" className="form-control" accept="image/*" onChange={handleCarFileChange} /></div>
+                        
+                        {carFormData.image && <div className="col-md-12"><img src={carFormData.image} alt="preview" style={{maxWidth: '200px', maxHeight: '150px'}} className="rounded" /></div>}
+                      </div>
+                      <div className="d-flex gap-2 mt-4 justify-content-end">
+                        <button type="button" className="btn btn-outline-secondary rounded-pill px-4" onClick={resetCarForm}>Hủy bỏ</button>
+                        <button type="submit" className="btn btn-success text-white rounded-pill px-5 fw-bold">{isEditingCar ? 'Cập nhật xe' : 'Thêm xe'}</button>
+                      </div>
+                    </form>
+                  </div>
+                )}
+
+                <div className="card border-0 shadow-sm rounded-4 overflow-hidden">
+                  <div className="table-responsive">
+                    <table className="table table-hover align-middle mb-0">
+                      <thead className="table-light">
+                        <tr>
+                          <th>TÊN XE</th>
+                          <th>LOẠI</th>
+                          <th>BIỂN SỐ</th>
+                          <th>GHẾ</th>
+                          <th>GIÁ/NGÀY</th>
+                          <th>TRẠNG THÁI</th>
+                          <th className="text-center">HÀNH ĐỘNG</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredCars.map(car => (
+                            <tr key={car._id}>
+                              <td className="small fw-bold">{car.name || ''}</td>
+                              <td className="small">{car.carType || ''}</td>
+                              <td className="small text-info fw-bold">{car.licensePlate || 'N/A'}</td>
+                              <td className="small text-center"><span className="badge bg-primary">{car.seats || 0} chỗ</span></td>
+                              <td className="small fw-bold text-danger">{car.pricePerDay?.toLocaleString('vi-VN')} VNĐ</td>
+                              <td className="text-center"><span className={`badge rounded-pill px-3 py-2 ${car.status === 'available' ? 'bg-success' : car.status === 'rented' ? 'bg-warning text-dark' : 'bg-secondary'}`}>{car.status === 'available' ? 'Sẵn sàng' : car.status === 'rented' ? 'Đang cho thuê' : 'Bảo trì'}</span></td>
+                              <td className="text-center">
+                                <div className="d-flex justify-content-center gap-1">
+                                  <button className="btn btn-sm btn-outline-primary rounded-circle" onClick={() => handleEditCarClick(car)} title="Sửa"><i className="bi bi-pencil"></i></button>
+                                  <button className="btn btn-sm btn-outline-danger rounded-circle" onClick={() => handleDeleteCar(car._id)} title="Xóa"><i className="bi bi-trash"></i></button>
+                                </div>
+                              </td>
+                            </tr>
+                        ))}
+                        {filteredCars.length === 0 && <tr><td colSpan="7" className="text-center py-4 text-muted fst-italic">Kho xe đang trống.</td></tr>}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
             )}
@@ -1027,9 +1250,7 @@ function AdminDashboard() {
 
                 <div className="d-flex justify-content-between align-items-center mb-4">
                   <h4 className="fw-bold mb-0 text-dark"><i className="bi bi-graph-up-arrow text-primary me-2"></i>Báo Cáo Doanh Thu</h4>
-                  <button className="btn btn-success fw-bold shadow-sm rounded-pill px-4" onClick={exportRevenueToExcel}>
-                    <i className="bi bi-file-earmark-excel-fill me-2"></i> Xuất Báo Cáo Excel
-                  </button>
+                  <button className="btn btn-success fw-bold shadow-sm rounded-pill px-4" onClick={exportRevenueToExcel}><i className="bi bi-file-earmark-excel-fill me-2"></i> Xuất Báo Cáo Excel</button>
                 </div>
                 
                 <div className="row g-3 mb-4">
@@ -1037,54 +1258,41 @@ function AdminDashboard() {
                     <div className="rev-card rev-card-blue">
                       <div className="stat-label"><i className="bi bi-currency-dollar me-1"></i>DOANH THU THÁNG</div>
                       <div className="stat-value">{revenueData.totalMonth.toLocaleString()} VNĐ</div>
-                      <div className="stat-sub"><i className="bi bi-arrow-up-short"></i> Cập nhật liên tục</div>
                     </div>
                   </div>
                   <div className="col-md-3">
                     <div className="rev-card rev-card-white">
                       <div className="stat-label text-muted"><i className="bi bi-calendar-day me-1"></i>DOANH THU HÔM NAY</div>
                       <div className="stat-value text-dark">{revenueData.totalToday.toLocaleString()} VNĐ</div>
-                      <div className="stat-sub text-success"><i className="bi bi-activity"></i> Hôm nay</div>
                     </div>
                   </div>
                   <div className="col-md-3">
                     <div className="rev-card rev-card-green">
                       <div className="stat-label"><i className="bi bi-check-circle me-1"></i>ĐƠN THÀNH CÔNG</div>
                       <div className="stat-value">{revenueData.successCount}</div>
-                      <div className="stat-sub">Đã thu tiền</div>
                     </div>
                   </div>
                   <div className="col-md-3">
                     <div className="rev-card rev-card-white">
                       <div className="stat-label text-muted"><i className="bi bi-star me-1"></i>TOUR PHỔ BIẾN</div>
                       <div className="stat-value text-dark fs-5 text-truncate" title={revenueData.popularTour}>{revenueData.popularTour}</div>
-                      <div className="stat-sub text-muted">Dựa trên lượt đặt</div>
                     </div>
                   </div>
                 </div>
 
                 <div className="card border-0 shadow-sm rounded-4 overflow-hidden">
                   <table className="table table-hover align-middle mb-0">
-                    <thead className="table-light text-muted small">
-                      <tr><th>Mã Đơn</th><th>Ngày Đặt</th><th>Tên Tour</th><th>Khách Hàng</th><th>Tổng Tiền</th><th>Trạng Thái</th><th className="text-center">Thao tác</th></tr>
-                    </thead>
+                    <thead className="table-light text-muted small"><tr><th>Mã Đơn</th><th>Ngày Đặt</th><th>Tên Tour</th><th>Tổng Tiền</th><th>Trạng Thái</th></tr></thead>
                     <tbody>
                       {filteredRevenueBookings.map(b => (
                         <tr key={b._id}>
                           <td className="fw-bold text-secondary">#{String(b._id).substring(18).toUpperCase()}</td>
                           <td>{new Date(b.createdAt).toLocaleDateString('vi-VN')}</td>
                           <td className="fw-bold text-truncate" style={{maxWidth: '200px'}}>{b.tourId?.title || <span className="text-muted fst-italic">Tour đã xóa</span>}</td>
-                          <td>{b.userId?.name || b.name || 'Khách vãng lai'}</td>
                           <td className="fw-bold text-primary">{b.totalPrice?.toLocaleString()}đ</td>
                           <td><span className="badge bg-success rounded-pill px-3 py-2">Đã Thanh Toán</span></td>
-                          <td className="text-center">
-                            <button className="btn btn-sm btn-link text-info text-decoration-none fw-bold" onClick={() => setSelectedBooking(b)}>[Xem]</button>
-                          </td>
                         </tr>
                       ))}
-                      {filteredRevenueBookings.length === 0 && (
-                        <tr><td colSpan="7" className="text-center py-4 text-muted">Không có dữ liệu doanh thu nào.</td></tr>
-                      )}
                     </tbody>
                   </table>
                 </div>
@@ -1094,80 +1302,6 @@ function AdminDashboard() {
           </div>
         </div>
       </div>
-
-      {/* MODAL CHI TIẾT TOUR */}
-      {selectedTour && (
-        <div className="modal-overlay" onClick={handleCloseTourModal}>
-          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
-            <div className="p-3 bg-info text-white d-flex justify-content-between align-items-center">
-              <h5 className="fw-bold mb-0">Chi tiết Tour</h5>
-              <button className="btn-close btn-close-white" onClick={handleCloseTourModal}></button>
-            </div>
-            <div className="p-4">
-              <div className="row mb-3"><div className="col-5 text-muted small">Tên Tour:</div><div className="col-7 fw-bold">{selectedTour.title}</div></div>
-              <div className="row mb-3"><div className="col-5 text-muted small">Thành phố:</div><div className="col-7 fw-bold">{selectedTour.city}</div></div>
-              <div className="row mb-3"><div className="col-5 text-muted small">Thời lượng:</div><div className="col-7 fw-bold">{selectedTour.duration}</div></div>
-              <div className="row mb-3"><div className="col-5 text-muted small">Khởi hành:</div><div className="col-7 fw-bold">{selectedTour.startDate || 'Không có'}</div></div>
-              <div className="row mb-3"><div className="col-5 text-muted small">Kết thúc:</div><div className="col-7 fw-bold">{selectedTour.endDate || 'Không có'}</div></div>
-              <div className="row mb-3"><div className="col-5 text-muted small">Tổng chỗ:</div><div className="col-7 fw-bold">{selectedTourStats?.totalSeats ?? 'Chưa xác định'} chỗ</div></div>
-              <div className="row mb-3"><div className="col-5 text-muted small">Đã đặt:</div><div className="col-7 fw-bold">{selectedTourStats?.bookedSeats ?? 'Chưa xác định'} chỗ</div></div>
-              <div className="row mb-3"><div className="col-5 text-muted small">Còn trống:</div><div className="col-7 fw-bold">{selectedTourStats?.remainingSeats ?? 'Chưa xác định'} chỗ</div></div>
-              <div className="row mb-3"><div className="col-5 text-muted small">Đang đặt:</div><div className="col-7 fw-bold">{selectedTourStats?.pendingSeats ?? 'Chưa xác định'} chỗ</div></div>
-              <div className="row mb-3 pb-3 border-bottom"><div className="col-5 text-muted small">Hủy:</div><div className="col-7 fw-bold">{selectedTourStats?.canceledSeats ?? 'Chưa xác định'} chỗ</div></div>
-              <div className="row mb-3"><div className="col-5 text-muted small">Mô tả:</div><div className="col-7 text-dark">{selectedTour.description || 'Chưa có mô tả'}</div></div>
-              {selectedTour.itinerary?.length > 0 && (
-                <div className="mt-4">
-                  <div className="text-muted small mb-2">Lịch trình chi tiết:</div>
-                  <div className="list-group list-group-flush">
-                    {selectedTour.itinerary.map((item, idx) => (
-                      <div key={idx} className="list-group-item px-0 py-2 border-0 bg-transparent">
-                        <span className="fw-bold">Ngày {item.day}:</span> {item.title} {item.description ? `- ${item.description}` : ''}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL CHI TIẾT ĐOÀN/ĐƠN HÀNG */}
-      {selectedBooking && (
-        <div className="modal-overlay" onClick={() => setSelectedBooking(null)}>
-          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
-            <div className="p-3 bg-info text-white d-flex justify-content-between align-items-center">
-              <h5 className="fw-bold mb-0">Thông tin Đoàn / Booking</h5>
-              <button className="btn-close btn-close-white" onClick={() => setSelectedBooking(null)}></button>
-            </div>
-            <div className="p-4">
-              <div className="row mb-3"><div className="col-5 text-muted small">Mã đơn:</div><div className="col-7 fw-bold">#{String(selectedBooking._id).substring(18).toUpperCase()}</div></div>
-              <div className="row mb-3"><div className="col-5 text-muted small">Tên Khách/Trưởng đoàn:</div><div className="col-7 fw-bold text-primary">{selectedBooking.userId?.name || selectedBooking.name || 'Khách vãng lai'}</div></div>
-              <div className="row mb-3"><div className="col-5 text-muted small">Số điện thoại liên hệ:</div><div className="col-7 fw-bold text-dark">{selectedBooking.userId?.phone || selectedBooking.phone || 'Chưa cập nhật'}</div></div>
-              <div className="row mb-3"><div className="col-5 text-muted small">Lịch trình Tour:</div><div className="col-7 fw-bold">{selectedBooking.tourId?.title || 'Tour đã bị xóa'}</div></div>
-              <div className="row mb-3"><div className="col-5 text-muted small">Thời gian tour:</div><div className="col-7 fw-bold">{selectedBooking.tourId?.startDate || 'Không có'} → {selectedBooking.tourId?.endDate || 'Không có'}</div></div>
-              <div className="row mb-3"><div className="col-5 text-muted small">Tổng chỗ:</div><div className="col-7 fw-bold">{selectedBookingStats?.totalSeats ?? 'Chưa xác định'} chỗ</div></div>
-              <div className="row mb-3"><div className="col-5 text-muted small">Chỗ đã đặt:</div><div className="col-7 fw-bold">{selectedBookingStats?.bookedSeats ?? 'Chưa xác định'} chỗ</div></div>
-              <div className="row mb-3"><div className="col-5 text-muted small">Chỗ còn trống:</div><div className="col-7 fw-bold">{selectedBookingStats?.remainingSeats ?? 'Chưa xác định'} chỗ</div></div>
-              <div className="row mb-3 pb-3 border-bottom"><div className="col-5 text-muted small">Chỗ đang đặt:</div><div className="col-7 fw-bold">{selectedBookingStats?.pendingSeats ?? 'Chưa xác định'} chỗ</div></div>
-              <div className="row mb-3 pb-3 border-bottom"><div className="col-5 text-muted small">Tình trạng xử lý:</div><div className="col-7"><span className={`badge ${selectedBooking.status === 'paid' ? 'bg-success' : selectedBooking.status === 'cancelled' ? 'bg-danger' : 'bg-warning text-dark'}`}>{selectedBooking.status === 'paid' ? 'Hoàn tất / Đã thanh toán' : selectedBooking.status === 'cancelled' ? 'Đã hủy' : 'Chờ xử lý'}</span></div></div>
-              <div className="row align-items-center"><div className="col-5 fw-bold">Tổng thanh toán:</div><div className="col-7 fw-bold text-danger fs-4">{selectedBooking.totalPrice?.toLocaleString()} ₫</div></div>
-              {selectedBooking.tourId?.itinerary?.length > 0 && (
-                <div className="mt-4 pt-3 border-top">
-                  <div className="text-muted small mb-2">Lịch trình chi tiết:</div>
-                  <div className="list-group list-group-flush">
-                    {selectedBooking.tourId.itinerary.map((item, idx) => (
-                      <div key={idx} className="list-group-item px-0 py-2 border-0 bg-transparent">
-                        <span className="fw-bold">Ngày {item.day}:</span> {item.title} {item.description ? `- ${item.description}` : ''}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
