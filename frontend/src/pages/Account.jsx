@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import API_BASE_URL from '../utils/apiConfig';
-import { resolveImageUrl } from '../utils/imagePath'; // ĐÃ THÊM: Import hàm fix ảnh
+import { resolveImageUrl } from '../utils/imagePath'; 
 
 function Account() {
   const navigate = useNavigate();
@@ -11,7 +11,6 @@ function Account() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // 1. Kiểm tra đăng nhập
     const userString = localStorage.getItem('user');
     if (!userString) {
       alert('Bạn cần đăng nhập để xem thông tin!');
@@ -22,7 +21,6 @@ function Account() {
     const currentUser = JSON.parse(userString);
     setUser(currentUser);
 
-    // 2. Lấy danh sách Tour đã đặt của user này
     const fetchMyBookings = async () => {
       try {
         const res = await axios.get(`${API_BASE_URL}/api/bookings/user/${currentUser._id}`);
@@ -54,7 +52,6 @@ function Account() {
         <h2 className="fw-bold mb-4">Hồ sơ cá nhân</h2>
         
         <div className="row g-4">
-          {/* CỘT TRÁI: THÔNG TIN USER */}
           <div className="col-12 col-lg-4">
             <div className="card border-0 shadow-sm rounded-4 text-center p-4 sticky-top" style={{ top: '75px' }}>
               <div className="mb-3">
@@ -80,7 +77,6 @@ function Account() {
             </div>
           </div>
 
-          {/* CỘT PHẢI: LỊCH SỬ ĐẶT TOUR */}
           <div className="col-12 col-lg-8">
             <div className="card border-0 shadow-sm rounded-4 p-4">
               <h5 className="fw-bold mb-4 pb-2 border-bottom">Chuyến đi của tôi ({myBookings.length})</h5>
@@ -96,10 +92,25 @@ function Account() {
               ) : (
                 <div className="d-flex flex-column gap-3">
                   {myBookings.map((booking) => (
-                    <div key={booking._id} className="card border border-light bg-light rounded-4 overflow-hidden shadow-sm">
+                    
+                    // 🔥 NÂNG CẤP TẠI ĐÂY: Thêm onClick để thẻ chuyến đi biến thành nút bấm sang trang Xem vé điện tử
+                    <div 
+                      key={booking._id} 
+                      className="card border border-light bg-light rounded-4 overflow-hidden shadow-sm"
+                      style={{ cursor: 'pointer', transition: 'all 0.2s ease-in-out' }}
+                      onClick={() => navigate(`/ticket/${booking._id}`)}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'translateY(-4px)';
+                        e.currentTarget.style.boxShadow = '0 10px 20px rgba(0,0,0,0.1)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = '0 .125rem .25rem rgba(0,0,0,.075)';
+                      }}
+                      title="Nhấp vào để xem Vé Điện Tử (QR Code)"
+                    >
                       <div className="row g-0 align-items-center">
                         <div className="col-md-3">
-                          {/* ĐÃ FIX: Ảnh hiển thị đúng đường dẫn */}
                           <img 
                             src={resolveImageUrl(booking.tourId?.image) || "https://images.unsplash.com/photo-1583417319070-4a69db38a482?auto=format&fit=crop&w=500&q=80"} 
                             className="img-fluid w-100 h-100" 
@@ -115,7 +126,6 @@ function Account() {
                                 {booking.tourId?.title || 'Tour này đã ngưng phục vụ'}
                               </h5>
                               
-                              {/* ĐÃ FIX: Logic trạng thái xử lý cả pending và pending_confirmation */}
                               {booking.status === 'paid' && (
                                 <span className="badge rounded-pill px-3 py-2 bg-success shadow-sm">Đã thanh toán</span>
                               )}
@@ -138,16 +148,15 @@ function Account() {
                             <div className="d-flex justify-content-between align-items-center mt-3 pt-2 border-top border-light">
                               <span className="text-danger fw-bold fs-5">{booking.totalPrice?.toLocaleString('vi-VN')} ₫</span>
                               
-                              {(booking.status !== 'paid' && booking.status !== 'cancelled') && (
-                                <Link to={`/payment/${booking._id}`} className="btn btn-sm btn-danger rounded-pill px-3 fw-bold shadow-sm hover-scale">
-                                  {booking.status === 'pending' || booking.status === 'pending_confirmation' ? 'Tiếp tục thanh toán' : 'Thanh toán ngay'} <i className="bi bi-arrow-right-short"></i>
-                                </Link>
-                              )}
+                              <span className="small text-info fw-bold fst-italic">
+                                Nhấp để xem Vé QR <i className="bi bi-arrow-right-short"></i>
+                              </span>
                             </div>
                           </div>
                         </div>
                       </div>
                     </div>
+
                   ))}
                 </div>
               )}

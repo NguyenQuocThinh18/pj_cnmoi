@@ -2,12 +2,9 @@ import { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Navbar from './components/Navbar'; 
 import Footer from './components/Footer'; 
-import ProtectedRoute from './components/ProtectedRoute'; // Import người gác cổng
-
-// --- THÊM DÒNG NÀY: Import component Chat ---
+import ProtectedRoute from './components/ProtectedRoute'; 
 import ChatWidget from './components/ChatWidget'; 
 
-// Lazy loading các trang để tối ưu tốc độ
 const Home = lazy(() => import('./pages/Home'));
 const Login = lazy(() => import('./pages/Login'));
 const TourDetails = lazy(() => import('./pages/TourDetails'));
@@ -18,22 +15,23 @@ const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 const TourList = lazy(() => import('./pages/TourList'));
 const About = lazy(() => import('./pages/About'));
-const Blog = lazy(() => import('./pages/Blog')); // Trang danh sách bài viết
-const BlogDetail = lazy(() => import('./pages/BlogDetail')); // Trang nội dung bài viết
+const Blog = lazy(() => import('./pages/Blog')); 
+const BlogDetail = lazy(() => import('./pages/BlogDetail')); 
 const Contact = lazy(() => import('./pages/Contact'));
 const Pricing = lazy(() => import('./pages/Pricing'));
 const Policy = lazy(() => import('./pages/Policy'));
 const OrderTracking = lazy(() => import('./pages/OrderTracking'));
 const PaymentResult = lazy(() => import('./pages/PaymentResult'));
 
+// 🔥 IMPORT TRANG VÉ ĐIỆN TỬ MỚI
+const Ticket = lazy(() => import('./pages/Ticket'));
+
 function App() {
   return (
     <Router>
       <div className="min-vh-100 d-flex flex-column bg-light">
-        {/* THANH ĐIỀU HƯỚNG */}
         <Navbar />
 
-        {/* NỘI DUNG CHÍNH */}
         <main className="flex-grow-1">
           <Suspense fallback={
             <div className="vh-100 d-flex align-items-center justify-content-center">
@@ -44,7 +42,6 @@ function App() {
             </div>
           }>
             <Routes>
-              {/* --- CÁC TRANG CÔNG KHAI (AI CŨNG XEM ĐƯỢC) --- */}
               <Route path="/" element={<Home />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
@@ -53,13 +50,10 @@ function App() {
               <Route path="/tours/id/:id" element={<TourDetails />} />
               <Route path="/tour/:id" element={<TourDetails />} />
               
-              {/* DÙNG CHUNG GIAO DIỆN DANH SÁCH TOUR CHO CẢ TRONG NƯỚC VÀ QUỐC TẾ */}
               <Route path="/tour-trong-nuoc" element={<TourList />} />
               <Route path="/tour-quoc-te" element={<TourList />} /> 
               
               <Route path="/gioi-thieu" element={<About />} />
-              
-              {/* HỆ THỐNG BLOG ĐÃ FIX ĐƯỜNG DẪN ĐỒNG BỘ backend */}
               <Route path="/blog" element={<Blog />} />
               <Route path="/blog/:slug" element={<BlogDetail />} />
               <Route path="/blog/id/:id" element={<BlogDetail />} />
@@ -69,11 +63,13 @@ function App() {
               <Route path="/chinh-sach" element={<Policy />} />
               <Route path="/tra-cuu" element={<OrderTracking />} />
 
-              {/* --- CÁC TRANG CẦN ĐĂNG NHẬP THƯỜNG --- */}
               <Route path="/tai-khoan" element={<Account />} />
               <Route path="/payment/:bookingId" element={<PaymentSandbox />} />
               <Route path="/payment-result" element={<PaymentResult />} />
-              {/* --- TRANG QUẢN TRỊ (CHỈ ADMIN MỚI VÀO ĐƯỢC) --- */}
+              
+              {/* 🔥 ROUTE DẪN TỚI TRANG VÉ ĐIỆN TỬ QR CHECK-IN */}
+              <Route path="/ticket/:id" element={<Ticket />} />
+
               <Route 
                 path="/admin" 
                 element={
@@ -86,10 +82,7 @@ function App() {
           </Suspense>
         </main>
 
-        {/* CHÂN TRANG */}
         <Footer />
-
-        {/* --- THÊM DÒNG NÀY: BONG BÓNG CHAT HIỂN THỊ TOÀN TRANG --- */}
         <ChatWidget />
       </div>
     </Router>
