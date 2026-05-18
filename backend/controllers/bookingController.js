@@ -17,7 +17,6 @@ const createBooking = async (req, res) => {
       status: paymentMethod === 'cash' ? 'paid' : 'pending',
     };
 
-    // ĐÃ FIX: Tự động tra cứu DB để điền thông tin cá nhân nếu phía Frontend không truyền lên
     if (userId) {
       bookingData.userId = userId;
       const foundUser = await User.findById(userId);
@@ -45,7 +44,6 @@ const getAllBookings = async (req, res) => {
     const { code, phone, status, page = 1, limit = 10 } = req.query;
     let query = {};
     
-    // Tracking by code or phone
     if (code || phone) {
       const queryVal = code || phone;
       const cleanQuery = queryVal.replace(/#/g, '').replace(/\s+/g, '').toLowerCase();
@@ -171,7 +169,6 @@ const getUserBookings = async (req, res) => {
   try {
     const { userId } = req.params;
 
-    // ĐÃ FIX: Chống lỗi lệch kiểu dữ liệu (String vs ObjectId) trong MongoDB bằng cách quét cả hai trường hợp
     let findQuery = { userId: userId };
     if (mongoose.Types.ObjectId.isValid(userId)) {
       findQuery = {
@@ -204,4 +201,32 @@ const getUserBookings = async (req, res) => {
   }
 };
 
-module.exports = { createBooking, getAllBookings, updateBooking, getUserBookings };
+// =========================================================================
+// ⚡ ĐÃ BỔ SUNG: HÀM XỬ LÝ ĐIỂM DANH CHECK-IN BẰNG QUÉT QR
+// =========================================================================
+const checkInBooking = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const updatedBooking = await Booking.findByIdAndUpdate(
+      id,
+      { $set: { checkedIn: true } },
+      { new: true }
+    ).populate('tourId');
+
+    if (!updatedBooking) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy mã đơn đặt tour này trên hệ thống!' });
+    }
+
+    return res.status(200).json({ 
+      success: true, 
+      message: `Check-in thành công cho đoàn khách: ${updatedBooking.name || 'Khách hàng'}!`, 
+      data: updatedBooking 
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Lỗi máy chủ khi xử lý Check-in', error: error.message });
+  }
+};
+
+// Xuất thêm checkInBooking ra ngoài
+module.exports = { createBooking, getAllBookings, updateBooking, getUserBookings, checkInBooking };

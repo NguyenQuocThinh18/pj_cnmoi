@@ -1,7 +1,7 @@
 // API Configuration
-const API_BASE_URL = 
+const API_BASE_URL =
   import.meta.env.VITE_API_URL ||
-  'https://backend-v1-779k.onrender.com';
+  'http://localhost:5000';
 
 export const axiosConfig = {
   baseURL: API_BASE_URL,

@@ -29,6 +29,10 @@ const bookingSchema = new mongoose.Schema(
       required: true,
       min: 1, // Ít nhất phải có 1 người đi
     },
+    checkedIn: {
+      type: Boolean,
+      default: false,
+    },
     totalPrice: {
       type: Number,
       required: true,

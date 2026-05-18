@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import API_BASE_URL from '../utils/apiConfig';
 import { resolveImageUrl } from '../../public/assets/img/index/imagePath';
@@ -8,6 +9,7 @@ import * as XLSX from 'xlsx';
 import { io } from 'socket.io-client'; 
 
 function AdminDashboard() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
   const [tours, setTours] = useState([]);
   const [bookings, setBookings] = useState([]);
@@ -15,11 +17,17 @@ function AdminDashboard() {
   const [blogs, setBlogs] = useState([]);
   const [reviews, setReviews] = useState([]);
   const [rentals, setRentals] = useState([]); 
+  const [cars, setCars] = useState([]);
   const [loading, setLoading] = useState(true);
   
   const [filterType, setFilterType] = useState('all'); 
   const [rentalFilter, setRentalFilter] = useState('all'); 
   const [searchTerm, setSearchTerm] = useState('');
+
+  // --- BỘ LỌC NGÀY KHỞI HÀNH & ĐIỀU HÀNH CHECK-IN QUÉT QR ---
+  const [checkInDate, setCheckInDate] = useState(new Date().toISOString().split('T')[0]);
+  const [isScanning, setIsScanning] = useState(false);
+  const [html5QrScanner, setHtml5QrScanner] = useState(null);
 
   // --- TRẠNG THÁI FORM TOUR ---
   const [showForm, setShowForm] = useState(false);
@@ -41,7 +49,6 @@ function AdminDashboard() {
   });
 
   // --- TRẠNG THÁI FORM QUẢN LÝ XE ---
-  const [cars, setCars] = useState([]);
   const [showCarForm, setShowCarForm] = useState(false);
   const [isEditingCar, setIsEditingCar] = useState(false);
   const [carFormData, setCarFormData] = useState({
@@ -58,6 +65,15 @@ function AdminDashboard() {
 
   const [availableCategories, setAvailableCategories] = useState([]);
   const [userRole, setUserRole] = useState('user');
+
+  // KẾT NỐI MÁY QUÉT QR HTML5 QUA CDN
+  useEffect(() => {
+    const script = document.createElement('script');
+    script.src = "https://unpkg.com/html5-qrcode";
+    script.async = true;
+    document.body.appendChild(script);
+    return () => { if (document.body.contains(script)) document.body.removeChild(script); };
+  }, []);
 
   // LẮNG NGHE CHUÔNG BÁO ĐỘNG REAL-TIME TỪ KHÁCH THUÊ XE
   useEffect(() => {
@@ -101,8 +117,9 @@ function AdminDashboard() {
     { id: 'overview', icon: 'speedometer2', label: 'Tổng quan', roles: ['admin', 'staff'] }, 
     { id: 'tours', icon: 'map', label: 'Lịch trình Tour', roles: ['admin', 'staff'] }, 
     { id: 'bookings', icon: 'receipt', label: 'Quản lý Đoàn & Đơn', roles: ['admin', 'staff'] }, 
+    { id: 'checkin', icon: 'qr-code-scan', label: 'Khởi Hành & Check-in', roles: ['admin', 'staff'] }, // 👈 TAB ĐIỀU HÀNH
     { id: 'rentals', icon: 'car-front-fill', label: 'Yêu cầu Thuê xe', roles: ['admin', 'staff'] }, 
-    { id: 'cars', icon: 'car-front', label: 'Quản lý Xe', roles: ['admin', 'staff'] }, 
+    { id: 'cars', icon: 'car-front', label: 'Quản lý Kho Xe', roles: ['admin', 'staff'] }, 
     { id: 'blogs', icon: 'journal-text', label: 'Quản lý Blog', roles: ['admin', 'staff'] }, 
     { id: 'reviews', icon: 'star-half', label: 'Bình luận', roles: ['admin'] }, 
     { id: 'users', icon: 'people', label: 'Người dùng & Phân quyền', roles: ['admin'] }, 
@@ -123,7 +140,7 @@ function AdminDashboard() {
 
   const getAuthHeaders = () => {
     const token = localStorage.getItem('token');
-    if (!token) return null;
+    if (!token || token === 'null' || token === 'undefined') return null;
     return { headers: { Authorization: `Bearer ${token}` } };
   };
 
@@ -157,6 +174,61 @@ function AdminDashboard() {
     }
   };
 
+  // =========================================================================
+  // ⚡ LOGIC XỬ LÝ QUÉT QR MÃ VÉ VÀ ĐIỂM DANH LÊN XE
+  // =========================================================================
+  const executeCheckIn = async (bookingId) => {
+    try {
+      const cfg = getAuthHeaders();
+      if (!cfg) { showNotification('Bạn chưa đăng nhập!', 'danger'); navigate('/login'); return false; }
+
+      const res = await axios.put(`${API_BASE_URL}/api/bookings/${bookingId}/checkin`, {}, cfg);
+      if (res.data.success) {
+        const beep = new Audio('https://assets.mixkit.co/active_storage/sfx/911/911-500.wav');
+        beep.play().catch(() => {});
+        Swal.fire({ icon: 'success', title: 'CHECK-IN THÀNH CÔNG! ✅', text: res.data.message, timer: 3000 });
+        fetchData(); 
+        return true;
+      }
+
+      showNotification(res.data.message || 'Mã vé không hợp lệ hoặc đã quét!', 'danger');
+      return false;
+    } catch (error) {
+      const status = error.response?.status;
+      const errorMessage = error.response?.data?.message || error.message || 'Mã vé không hợp lệ hoặc đã quét!';
+      if (status === 401 || status === 403) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        showNotification('Phiên đăng nhập đã hết hạn hoặc không hợp lệ. Vui lòng đăng nhập lại.', 'danger');
+        navigate('/login');
+      } else {
+        Swal.fire('Lỗi Check-in', errorMessage, 'error');
+      }
+      return false;
+    }
+  };
+
+  const startQRScanner = () => {
+    if (!window.Html5QrcodeScanner) {
+      return Swal.fire('Thông báo', 'Hệ thống quét đang tải thư viện, vui lòng thử lại sau 2 giây!', 'info');
+    }
+    setIsScanning(true);
+    setTimeout(() => {
+      const scanner = new window.Html5QrcodeScanner("qr-reader-box", { fps: 10, qrbox: 250 });
+      scanner.render(async (decodedText) => {
+        scanner.clear();
+        setIsScanning(false);
+        await executeCheckIn(decodedText); 
+      }, (error) => {});
+      setHtml5QrScanner(scanner);
+    }, 300);
+  };
+
+  const stopQRScanner = () => {
+    if (html5QrScanner) { html5QrScanner.clear(); setHtml5QrScanner(null); }
+    setIsScanning(false);
+  };
+
   const handleTourFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -179,9 +251,6 @@ function AdminDashboard() {
     }
   };
 
-  // =========================================================================
-  // ⚡ XỬ LÝ SỰ KIỆN CRUD TRỌN GÓI CHO THUÊ XE
-  // =========================================================================
   const handleRentalInputChange = (e) => {
     setRentalFormData({ ...rentalFormData, [e.target.name]: e.target.value });
   };
@@ -194,15 +263,8 @@ function AdminDashboard() {
 
   const handleEditRentalClick = (r) => {
     setRentalFormData({
-      _id: r._id || '',
-      name: r.name || '',
-      phone: r.phone || '',
-      email: r.email || '',
-      carType: r.carType || 'Xe 16 Chỗ',
-      date: r.date || '',
-      endDate: r.endDate || '',
-      destination: r.destination || '',
-      rentalType: r.rentalType || 'driver'
+      _id: r._id || '', name: r.name || '', phone: r.phone || '', email: r.email || '', carType: r.carType || 'Xe 16 Chỗ',
+      date: r.date || '', endDate: r.endDate || '', destination: r.destination || '', rentalType: r.rentalType || 'driver'
     });
     setIsEditingRental(true);
     setShowRentalForm(true);
@@ -214,14 +276,13 @@ function AdminDashboard() {
     try {
       const cfg = getAuthHeaders();
       if (!cfg) return showNotification('Bạn chưa đăng nhập!', 'danger');
-
       const submitData = { ...rentalFormData };
 
       if (isEditingRental) {
         await axios.put(`${API_BASE_URL}/api/rentals/${submitData._id}`, submitData, cfg);
         showNotification('Cập nhật thông tin phiếu thuê xe thành công!', 'success');
       } else {
-        delete submitData._id; // 🔥 XÓA _ID TRỐNG KHI THÊM MỚI ĐỂ KHÔNG BỊ LỖI CASTERROR 
+        delete submitData._id; 
         await axios.post(`${API_BASE_URL}/api/rentals`, submitData, cfg);
         showNotification('Thêm mới phiếu thuê xe du lịch thành công!', 'success');
       }
@@ -255,7 +316,6 @@ function AdminDashboard() {
     });
   };
 
-  // --- 🚗 CÁC HÀM QUẢN LÝ XE (CAR CRUD) ---
   const handleCarInputChange = (e) => {
     const { name, value } = e.target;
     setCarFormData(prev => ({ ...prev, [name]: name === 'seats' || name === 'pricePerDay' || name === 'yearManufactured' ? Number(value) : value }));
@@ -269,17 +329,9 @@ function AdminDashboard() {
 
   const handleEditCarClick = (car) => {
     setCarFormData({
-      _id: car._id || '',
-      name: car.name || '',
-      carType: car.carType || 'Van',
-      seats: car.seats || 16,
-      pricePerDay: car.pricePerDay || 1000000,
-      description: car.description || '',
-      image: car.image || '',
-      features: car.features || [],
-      licensePlate: car.licensePlate || '',
-      manufacturer: car.manufacturer || '',
-      yearManufactured: car.yearManufactured || new Date().getFullYear()
+      _id: car._id || '', name: car.name || '', carType: car.carType || 'Van', seats: car.seats || 16, pricePerDay: car.pricePerDay || 1000000,
+      description: car.description || '', image: car.image || '', features: car.features || [], licensePlate: car.licensePlate || '',
+      manufacturer: car.manufacturer || '', yearManufactured: car.yearManufactured || new Date().getFullYear()
     });
     setIsEditingCar(true);
     setShowCarForm(true);
@@ -298,7 +350,7 @@ function AdminDashboard() {
         await axios.put(`${API_BASE_URL}/api/cars/${submitData._id}`, submitData, cfg);
         showNotification('Cập nhật thông tin xe thành công!', 'success');
       } else {
-        delete submitData._id; // 🔥 XÓA _ID TRỐNG KHI THÊM MỚI ĐỂ KHÔNG BỊ LỖI CASTERROR 
+        delete submitData._id; 
         await axios.post(`${API_BASE_URL}/api/cars`, submitData, cfg);
         showNotification('Thêm xe mới thành công!', 'success');
       }
@@ -307,7 +359,6 @@ function AdminDashboard() {
     } catch (error) {
       const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || 'Lỗi khi lưu thông tin xe!';
       showNotification(errorMessage, 'danger');
-      console.error('Lỗi lưu xe:', error.response?.data || error.message);
     }
   };
 
@@ -324,27 +375,46 @@ function AdminDashboard() {
     });
   };
 
-  const handleCarFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setCarFormData(prev => ({ ...prev, image: reader.result }));
-      };
-      reader.readAsDataURL(file);
-    }
-  };
+  // --- CÁC HÀM FILTER DỮ LIỆU ĐÃ FIX LỖI TIME TRẮNG MÀN HÌNH ---
+  const departuresData = useMemo(() => {
+    const dayBookings = bookings.filter(b => {
+      if (b.status !== 'paid') return false; 
+      try {
+        const bDate = new Date(b.createdAt).toISOString().split('T')[0];
+        return bDate === checkInDate;
+      } catch (e) { return false; }
+    });
 
-  // --- CÁC HÀM FILTER MEMO ---
+    const groups = {};
+    dayBookings.forEach(b => {
+      const tourId = b.tourId?._id;
+      if (!tourId) return;
+
+      if (!groups[tourId]) {
+        groups[tourId] = { tour: b.tourId, totalExpected: 0, totalCheckedIn: 0, passengerList: [] };
+      }
+
+      const size = Number(b.guestSize || 1);
+      groups[tourId].totalExpected += size;
+      if (b.checkedIn === true) groups[tourId].totalCheckedIn += size;
+      
+      groups[tourId].passengerList.push(b);
+    });
+
+    return Object.values(groups);
+  }, [bookings, checkInDate]);
+
   const filteredBookings = useMemo(() => {
     const today = new Date();
     return bookings.filter(b => {
-      const bDate = new Date(b.createdAt);
-      const matchesFilter = filterType === 'day' ? bDate.toDateString() === today.toDateString() :
-                            filterType === 'month' ? (bDate.getMonth() === today.getMonth() && bDate.getFullYear() === today.getFullYear()) : true;
-      const matchesSearch = b._id.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                            b.tourId?.title?.toLowerCase().includes(searchTerm.toLowerCase());
-      return matchesFilter && matchesSearch;
+      try {
+        const bDate = new Date(b.createdAt);
+        const matchesFilter = filterType === 'day' ? bDate.toDateString() === today.toDateString() :
+                              filterType === 'month' ? (bDate.getMonth() === today.getMonth() && bDate.getFullYear() === today.getFullYear()) : true;
+        const matchesSearch = b._id.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                              b.tourId?.title?.toLowerCase().includes(searchTerm.toLowerCase());
+        return matchesFilter && matchesSearch;
+      } catch (e) { return false; }
     });
   }, [bookings, filterType, searchTerm]);
 
@@ -378,12 +448,16 @@ function AdminDashboard() {
     const paidBookings = bookings.filter(b => b.status === 'paid');
 
     const monthlyPaid = paidBookings.filter(b => {
-      const d = new Date(b.createdAt);
-      return d.getMonth() === thisMonth && d.getFullYear() === thisYear;
+      try {
+        const d = new Date(b.createdAt);
+        return d.getMonth() === thisMonth && d.getFullYear() === thisYear;
+      } catch(e) { return false; }
     });
     const totalMonth = monthlyPaid.reduce((sum, b) => sum + (Number(b.totalPrice) || 0), 0);
 
-    const todayPaid = paidBookings.filter(b => new Date(b.createdAt).toDateString() === now.toDateString());
+    const todayPaid = paidBookings.filter(b => {
+      try { return new Date(b.createdAt).toDateString() === now.toDateString(); } catch(e){ return false; }
+    });
     const totalToday = todayPaid.reduce((sum, b) => sum + (Number(b.totalPrice) || 0), 0);
 
     const tourCounts = {};
@@ -395,10 +469,7 @@ function AdminDashboard() {
     let popularTour = 'Chưa xác định';
     let maxCount = 0;
     Object.entries(tourCounts).forEach(([title, count]) => {
-      if (count > maxCount) {
-        maxCount = count;
-        popularTour = title;
-      }
+      if (count > maxCount) { maxCount = count; popularTour = title; }
     });
 
     return { totalMonth, totalToday, successCount: paidBookings.length, popularTour };
@@ -409,11 +480,12 @@ function AdminDashboard() {
     const today = new Date();
 
     if (filterType === 'day') {
-      list = list.filter(b => new Date(b.createdAt).toDateString() === today.toDateString());
+      list = list.filter(b => {
+        try { return new Date(b.createdAt).toDateString() === today.toDateString(); } catch(e){ return false;}
+      });
     } else if (filterType === 'month') {
       list = list.filter(b => {
-        const d = new Date(b.createdAt);
-        return d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
+        try { const d = new Date(b.createdAt); return d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear(); } catch(e){ return false;}
       });
     }
 
@@ -423,6 +495,31 @@ function AdminDashboard() {
 
     return list;
   }, [bookings, filterType, searchTerm]);
+
+  const orderStatusCounts = useMemo(() => {
+    const counts = { pending: 0, paid: 0, cancelled: 0, processed: 0 };
+    bookings.forEach((b) => {
+      const status = String(b.status || 'pending').toLowerCase();
+      if (!counts[status]) counts[status] = 0;
+      counts[status] += 1;
+    });
+    return counts;
+  }, [bookings]);
+
+  const stats = useMemo(() => ({
+    tourCount: tours.length,
+    bookingTotal: bookings.length,
+    userCount: users.length,
+  }), [tours.length, bookings.length, users.length]);
+
+  const pieData = useMemo(() => ([
+    { name: 'Chờ xử lý', value: orderStatusCounts.pending },
+    { name: 'Đã thanh toán', value: orderStatusCounts.paid },
+    { name: 'Đã hủy', value: orderStatusCounts.cancelled },
+    { name: 'Đã xử lý', value: orderStatusCounts.processed },
+  ]), [orderStatusCounts]);
+
+  const COLORS = ['#0d6efd', '#20c997', '#ffc107', '#dc3545'];
 
   const downloadExcel = (data, fileName) => {
     if(data.length === 0) return showNotification('Không có dữ liệu để xuất', 'warning');
@@ -611,7 +708,7 @@ function AdminDashboard() {
         await axios.put(`${API_BASE_URL}/api/tours/${submitData._id}`, submitData, cfg);
         showNotification('Cập nhật tour thành công!', 'success');
       } else {
-        delete submitData._id; // 🔥 Xóa id rỗng để Mongoose tự sinh id mới
+        delete submitData._id; 
         await axios.post(`${API_BASE_URL}/api/tours`, submitData, cfg);
         showNotification('Thêm tour mới thành công!', 'success');
       }
@@ -648,42 +745,6 @@ function AdminDashboard() {
   const handleViewTour = (tour) => { setSelectedTour(tour); };
   const handleCloseTourModal = () => { setSelectedTour(null); };
 
-  const stats = useMemo(() => {
-    const paid = bookings.filter(b => b.status === 'paid');
-    const totalRevenue = paid.reduce((sum, b) => sum + (b.totalPrice || 0), 0);
-    return { totalRevenue, bookingTotal: bookings.length, tourCount: tours.length, userCount: users.length, blogCount: blogs.length };
-  }, [bookings, tours, users, blogs]);
-
-  const pieData = useMemo(() => {
-    return [
-      { name: 'Đã thanh toán', value: bookings.filter(b => b.status === 'paid').length },
-      { name: 'Chờ xử lý', value: bookings.filter(b => b.status === 'pending' || b.status === 'pending_confirmation').length },
-      { name: 'Đã hủy', value: bookings.filter(b => b.status === 'cancelled').length },
-    ];
-  }, [bookings]);
-  const COLORS = ['#198754', '#ffc107', '#dc3545']; 
-
-  const selectedBookingStats = useMemo(() => {
-    if (!selectedBooking || !selectedBooking.tourId?._id) return null;
-    const tourId = String(selectedBooking.tourId._id);
-    const tourBookings = bookings.filter(b => String(b.tourId?._id) === tourId);
-    const bookedSeats = tourBookings.filter(b => b.status !== 'cancelled').reduce((sum, b) => sum + (b.guestSize || 0), 0);
-    const pendingSeats = tourBookings.filter(b => b.status === 'pending').reduce((sum, b) => sum + (b.guestSize || 0), 0);
-    const totalSeats = Number(selectedBooking.tourId.availableSeats || 0);
-    return { totalSeats, bookedSeats, pendingSeats, remainingSeats: Math.max(totalSeats - bookedSeats, 0), tourBookingsCount: tourBookings.length };
-  }, [selectedBooking, bookings]);
-
-  const selectedTourStats = useMemo(() => {
-    if (!selectedTour || !selectedTour._id) return null;
-    const tourId = String(selectedTour._id);
-    const tourBookings = bookings.filter(b => String(b.tourId?._id) === tourId);
-    const bookedSeats = tourBookings.filter(b => b.status !== 'cancelled').reduce((sum, b) => sum + (b.guestSize || 0), 0);
-    const pendingSeats = tourBookings.filter(b => b.status === 'pending').reduce((sum, b) => sum + (b.guestSize || 0), 0);
-    const totalSeats = Number(selectedTour.availableSeats || 0);
-    const canceledSeats = tourBookings.filter(b => b.status === 'cancelled').reduce((sum, b) => sum + (b.guestSize || 0), 0);
-    return { totalSeats, bookedSeats, pendingSeats, canceledSeats, remainingSeats: Math.max(totalSeats - bookedSeats, 0), totalBookings: tourBookings.length };
-  }, [selectedTour, bookings]);
-
   if (loading) return (
     <div className="bg-light pb-5" style={{ minHeight: '100vh' }}>
       <div className="container-fluid px-4 mt-4">
@@ -708,6 +769,9 @@ function AdminDashboard() {
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1050; display: flex; justify-content: center; align-items: center; } 
         .modal-box { background: white; border-radius: 16px; width: 90%; max-width: 500px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.2); animation: scaleIn 0.3s ease; } @keyframes scaleIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
         .table-warning-light { background-color: #fffbeb !important; }
+        .table-success-light { background-color: #f0fdf4 !important; }
+        .bg-success-light { background-color: #dcfce7; }
+        .bg-warning-light { background-color: #fef9c3; }
       `}</style>
       
       <div className="container-fluid px-4 mt-4">
@@ -725,7 +789,7 @@ function AdminDashboard() {
               </div>
               <div className="py-2">
                 {menuItems.filter(item => item.roles.includes(userRole)).map(item => (
-                  <div key={item.id} className={`p-3 cursor-pointer ${activeTab === item.id ? 'bg-info text-white' : ''}`} onClick={() => {setActiveTab(item.id); setSearchTerm('');}} style={{cursor: 'pointer'}}>
+                  <div key={item.id} className={`p-3 cursor-pointer ${activeTab === item.id ? 'bg-info text-white' : ''}`} onClick={() => {setActiveTab(item.id); setSearchTerm(''); stopQRScanner();}} style={{cursor: 'pointer'}}>
                     <i className={`bi bi-${item.icon} me-2`}></i> {item.label}
                   </div>
                 ))}
@@ -739,7 +803,7 @@ function AdminDashboard() {
               <div className="animation-fade-in">
                 <h4 className="fw-bold mb-4">Chào {userRole === 'admin' ? 'Admin' : 'bạn'}, hôm nay công việc thế nào?</h4>
                 <div className="row g-4">
-                  {[{ label: 'Tổng số Tour', val: stats.tourCount, icon: 'map', color: 'primary' }, { label: 'Đơn đặt / Thông tin đoàn', val: stats.bookingTotal, icon: 'cart-check', color: 'success' }, { label: 'Thành viên', val: stats.userCount, icon: 'people', color: 'warning' }].map((item, idx) => (
+                  {[{ label: 'Tổng số Tour', val: stats.tourCount, icon: 'map', color: 'primary' }, { label: 'Đơn đặt / Thông đoàn', val: stats.bookingTotal, icon: 'cart-check', color: 'success' }, { label: 'Thành viên', val: stats.userCount, icon: 'people', color: 'warning' }].map((item, idx) => (
                     <div className="col-md-4" key={idx}>
                       <div className={`card border-0 shadow-sm rounded-4 p-4 bg-${item.color} text-white position-relative`}>
                         <small className="opacity-75">{item.label}</small>
@@ -919,6 +983,128 @@ function AdminDashboard() {
                     </tbody>
                   </table>
                 </div>
+              </div>
+            )}
+
+            {/* ========================================================================= */}
+            {/* ⚡ TAB ĐIỀU HÀNH KHỞI HÀNH & SOÁT VÉ QR CODE CHECK-IN */}
+            {/* ========================================================================= */}
+            {activeTab === 'checkin' && (userRole === 'admin' || userRole === 'staff') && (
+              <div className="animation-fade-in">
+                
+                {/* THANH ĐIỀU CHỈNH NGÀY KHỞI HÀNH VÀ QUÉT MÃ QR */}
+                <div className="card border-0 shadow-sm rounded-4 p-4 mb-4">
+                  <div className="row align-items-center g-3">
+                    <div className="col-12 col-md-5">
+                      <label className="form-label small fw-bold text-muted"><i className="bi bi-calendar-event-fill text-info me-1"></i> Chọn ngày khởi hành:</label>
+                      <input 
+                        type="date" 
+                        className="form-control border-info rounded-pill px-3 fw-bold" 
+                        value={checkInDate} 
+                        onChange={(e) => setCheckInDate(e.target.value)} 
+                      />
+                    </div>
+                    <div className="col-12 col-md-7 text-md-end pt-md-4">
+                      {!isScanning ? (
+                        <button className="btn btn-info text-white rounded-pill px-4 shadow-sm fw-bold animate-bounce" onClick={startQRScanner}>
+                          <i className="bi bi-qr-code-scan me-2"></i> BẬT CAMERA QUÉT VÉ QR
+                        </button>
+                      ) : (
+                        <button className="btn btn-danger text-white rounded-pill px-4 shadow-sm fw-bold" onClick={stopQRScanner}>
+                          <i className="bi bi-camera-video-off-fill me-2"></i> TẮT CAMERA QUÉT
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* KHUNG HIỂN THỊ CAMERA QUÉT QR MÃ VÉ */}
+                  {isScanning && (
+                    <div className="mt-4 p-3 bg-dark rounded-4 text-center border border-info border-3 mx-auto" style={{maxWidth: '350px'}}>
+                      <div id="qr-reader-box" style={{width: '100%', borderRadius: '12px', overflow: 'hidden', backgroundColor: 'black'}}></div>
+                      <span className="small text-info d-block mt-3 px-2 animate-pulse"><i className="bi bi-broadcast me-1"></i> Hướng camera vào mã QR trên vé khách...</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* DANH SÁCH CÁC CHUYẾN TOUR KHỞI HÀNH THEO NGÀY ĐÃ CHỌN */}
+                <h4 className="fw-bold mb-3 text-dark"><i className="bi bi-bus-front text-success me-2"></i>Giám sát Lượt khởi hành ngày: {new Date(checkInDate).toLocaleDateString('vi-VN')}</h4>
+                
+                {departuresData.length === 0 ? (
+                  <div className="card border-0 shadow-sm rounded-4 p-5 text-center text-muted fst-italic">
+                    <i className="bi bi-slash-circle-fill text-secondary fs-1 mb-2"></i>
+                    <h5>Không có chuyến tour nào khởi hành vào ngày đã chọn!</h5>
+                    <p className="small mb-0">Hệ thống chỉ tính những đoàn khách của ngày này đã thanh toán hóa đơn thành công.</p>
+                  </div>
+                ) : (
+                  departuresData.map(group => (
+                    <div key={group.tour._id} className="card border-0 shadow-sm rounded-4 p-4 mb-4 border-start border-success border-5">
+                      {/* Tiêu đề & Tiến độ soát vé của xe */}
+                      <div className="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center mb-3 border-bottom pb-3">
+                        <div>
+                          <h5 className="fw-bold text-dark mb-1 text-uppercase">{group.tour.title}</h5>
+                          <span className="small text-muted"><i className="bi bi-geo-alt-fill text-danger me-1"></i>Điểm đến: {group.tour.city} | <i className="bi bi-clock-fill text-warning me-1"></i>Thời lượng: {group.tour.duration}</span>
+                        </div>
+                        <div className="text-sm-end mt-2 mt-sm-0">
+                          <span className="fs-5 fw-bold text-success">{group.totalCheckedIn}</span> 
+                          <span className="text-muted"> / {group.totalExpected} Khách có mặt</span>
+                          
+                          {/* Thanh phần trăm tiến độ lên xe */}
+                          <div className="progress mt-1 rounded-pill" style={{height: '8px', minWidth: '15px'}}>
+                            <div 
+                              className="progress-bar bg-success rounded-pill" 
+                              role="progressbar" 
+                              style={{ width: `${(group.totalCheckedIn / group.totalExpected) * 100}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Danh sách hành khách/đoàn của chuyến đi */}
+                      <div className="table-responsive">
+                        <table className="table table-hover table-sm align-middle mb-0 small">
+                          <thead className="table-light text-muted">
+                            <tr>
+                              <th>MÃ ĐƠN</th>
+                              <th>TRƯỞNG ĐOÀN</th>
+                              <th className="text-center">SỐ LƯỢNG</th>
+                              <th>ĐIỆN THOẠI</th>
+                              <th>TRẠNG THÁI LÊN XE</th>
+                              <th className="text-center">ĐIỂM DANH THỦ CÔNG</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {group.passengerList.map(p => (
+                              <tr key={p._id} className={p.checkedIn === true ? 'table-success-light' : ''}>
+                                <td className="fw-bold text-secondary">#{String(p._id).substring(18).toUpperCase()}</td>
+                                <td className="fw-bold text-dark">{p.name || p.userId?.name}</td>
+                                <td className="text-center fw-bold">{p.guestSize} Người</td>
+                                <td className="text-muted">{p.phone || p.userId?.phone}</td>
+                                <td>
+                                  {p.checkedIn === true ? (
+                                    <span className="badge bg-success-light text-success px-3 py-1 rounded-pill fw-bold border border-success"><i className="bi bi-check-circle-fill me-1"></i> Đã lên xe ✅</span>
+                                  ) : (
+                                    <span className="badge bg-warning-light text-warning px-3 py-1 rounded-pill fw-bold border border-warning"><i className="bi bi-exclamation-triangle-fill me-1"></i> Chờ soát vé ⏳</span>
+                                  )}
+                                </td>
+                                <td className="text-center">
+                                  {p.checkedIn !== true ? (
+                                    <button className="btn btn-sm btn-success rounded-pill px-3 shadow-sm fw-bold" onClick={() => executeCheckIn(p._id)}>
+                                      <i className="bi bi-person-check-fill me-1"></i> Xác nhận có mặt
+                                    </button>
+                                  ) : (
+                                    <button className="btn btn-sm btn-outline-secondary rounded-pill px-3 disabled" disabled>
+                                      <i className="bi bi-shield-check me-1"></i> Hoàn tất
+                                    </button>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             )}
 
@@ -1161,7 +1347,7 @@ function AdminDashboard() {
             {activeTab === 'cars' && (userRole === 'admin' || userRole === 'staff') && (
               <div className="animation-fade-in">
                 <div className="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center mb-4 gap-2">
-                  <h4 className="fw-bold mb-0"><i className="bi bi-car-front text-success me-2"></i>Quản lý Xe</h4>
+                  <h4 className="fw-bold mb-0"><i className="bi bi-car-front text-success me-2"></i>Quản lý Kho Xe</h4>
                   <button className="btn btn-sm btn-success text-white rounded-pill px-3 shadow-sm fw-bold" onClick={() => { setShowCarForm(!showCarForm); setIsEditingCar(false); if(showCarForm) resetCarForm(); }}>
                     {showCarForm ? 'Đóng form' : '+ Thêm xe mới'}
                   </button>
@@ -1173,18 +1359,18 @@ function AdminDashboard() {
                     <form onSubmit={handleSubmitCar}>
                       <div className="row g-3">
                         <div className="col-md-4"><label className="small fw-bold">Tên xe *</label><input type="text" className="form-control" name="name" value={carFormData.name || ''} onChange={handleCarInputChange} required /></div>
-                        <div className="col-md-4"><label className="small fw-bold">Loại xe *</label><input type="text" className="form-control" name="carType" placeholder="VD: Van, Sedan, Bus" value={carFormData.carType || ''} onChange={handleCarInputChange} required /></div>
-                        <div className="col-md-4"><label className="small fw-bold">Biển số xe *</label><input type="text" className="form-control" name="licensePlate" placeholder="VD: 30A-12345" value={carFormData.licensePlate || ''} onChange={handleCarInputChange} required /></div>
+                        <div className="col-md-4"><label className="small fw-bold">Loại xe *</label><input type="text" className="form-control" name="carType" value={carFormData.carType || ''} onChange={handleCarInputChange} required /></div>
+                        <div className="col-md-4"><label className="small fw-bold">Biển số xe *</label><input type="text" className="form-control" name="licensePlate" value={carFormData.licensePlate || ''} onChange={handleCarInputChange} required /></div>
                         
                         <div className="col-md-3"><label className="small fw-bold">Số ghế *</label><input type="number" className="form-control" name="seats" min="1" value={carFormData.seats || 16} onChange={handleCarInputChange} required /></div>
                         <div className="col-md-3"><label className="small fw-bold">Giá/ngày (VNĐ) *</label><input type="number" className="form-control" name="pricePerDay" min="0" value={carFormData.pricePerDay || ''} onChange={handleCarInputChange} required /></div>
                         <div className="col-md-3"><label className="small fw-bold">Hãng sản xuất</label><input type="text" className="form-control" name="manufacturer" value={carFormData.manufacturer || ''} onChange={handleCarInputChange} /></div>
                         <div className="col-md-3"><label className="small fw-bold">Năm sản xuất</label><input type="number" className="form-control" name="yearManufactured" value={carFormData.yearManufactured || new Date().getFullYear()} onChange={handleCarInputChange} /></div>
                         
-                        <div className="col-md-12"><label className="small fw-bold">Mô tả xe</label><textarea className="form-control" name="description" rows="2" placeholder="Mô tả chi tiết về xe..." value={carFormData.description || ''} onChange={handleCarInputChange}></textarea></div>
+                        <div className="col-md-12"><label className="small fw-bold">Mô tả xe</label><textarea className="form-control" name="description" rows="2" value={carFormData.description || ''} onChange={handleCarInputChange}></textarea></div>
                         <div className="col-md-12"><label className="small fw-bold">Hình ảnh xe</label><input type="file" className="form-control" accept="image/*" onChange={handleCarFileChange} /></div>
                         
-                        {carFormData.image && <div className="col-md-12"><img src={carFormData.image} alt="preview" style={{maxWidth: '200px', maxHeight: '150px'}} className="rounded" /></div>}
+                        {carFormData.image && <div className="col-md-12"><img src={carFormData.image} alt="preview" style={{maxWidth: '200px', maxHeight: '150px'}} className="rounded border shadow-sm" /></div>}
                       </div>
                       <div className="d-flex gap-2 mt-4 justify-content-end">
                         <button type="button" className="btn btn-outline-secondary rounded-pill px-4" onClick={resetCarForm}>Hủy bỏ</button>
@@ -1225,7 +1411,6 @@ function AdminDashboard() {
                               </td>
                             </tr>
                         ))}
-                        {filteredCars.length === 0 && <tr><td colSpan="7" className="text-center py-4 text-muted fst-italic">Kho xe đang trống.</td></tr>}
                       </tbody>
                     </table>
                   </div>
