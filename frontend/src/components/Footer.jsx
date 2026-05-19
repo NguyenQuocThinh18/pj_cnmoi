@@ -10,7 +10,7 @@ function Footer() {
             <ul className="list-unstyled small text-secondary">
               <li className="mb-2"><i className="bi bi-geo-alt-fill text-info me-2"></i> 12 Nguyễn Văn Bảo, Gò Vấp, TP.HCM (IUH)</li>
               <li className="mb-2"><i className="bi bi-telephone-fill text-info me-2"></i> (+84) 778 118 008</li>
-              <li className="mb-2"><i className="bi bi-envelope-fill text-info me-2"></i> thaitran2706@gmail.com</li>
+              <li className="mb-2"><i className="bi bi-envelope-fill text-info me-2"></i> dulichviet@gmail.com</li>
             </ul>
           </div>
 
