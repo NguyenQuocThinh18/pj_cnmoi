@@ -1,3 +1,9 @@
+/*
+ * seedCategories.js
+ * File mã nguồn: seedCategories.js.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 const connectDB = require('./config/db');

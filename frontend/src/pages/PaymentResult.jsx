@@ -1,3 +1,9 @@
+/*
+ * PaymentResult.jsx
+ * Trang hiển thị kết quả thanh toán.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';

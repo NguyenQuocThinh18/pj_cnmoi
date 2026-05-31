@@ -1,3 +1,9 @@
+/*
+ * reviewRoutes.js
+ * Định nghĩa các API đánh giá/bình luận.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 const express = require('express');
 const router = express.Router();
 const { 

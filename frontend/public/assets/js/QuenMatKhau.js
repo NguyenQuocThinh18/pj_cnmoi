@@ -1,3 +1,9 @@
+/*
+ * QuenMatKhau.js
+ * Script cũ cho trang quên mật khẩu.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 $(document).ready(function () {
   $("#send").click(function () {
     let email_sdt = $("#email_sdt").val();

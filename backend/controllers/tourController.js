@@ -1,3 +1,9 @@
+/*
+ * tourController.js
+ * Xử lý CRUD tour du lịch và các truy vấn liên quan.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 const Tour = require('../models/Tour');
 const Booking = require('../models/Booking'); // Dùng để tính toán số ghế
 const slugify = require('slugify'); 

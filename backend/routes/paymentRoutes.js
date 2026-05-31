@@ -1,3 +1,9 @@
+/*
+ * paymentRoutes.js
+ * Router Express định nghĩa endpoint cho payment.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 const express = require('express');
 const router = express.Router();
 const moment = require('moment');

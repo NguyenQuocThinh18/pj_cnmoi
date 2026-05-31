@@ -1,3 +1,9 @@
+/*
+ * Policy.jsx
+ * Trang chính sách của website.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 

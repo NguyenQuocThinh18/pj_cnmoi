@@ -1,3 +1,9 @@
+/*
+ * MyBookings.jsx
+ * Trang danh sách đơn đặt tour của người dùng.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import API_BASE_URL from '../utils/apiConfig';

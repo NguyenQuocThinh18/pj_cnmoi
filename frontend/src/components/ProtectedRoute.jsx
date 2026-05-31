@@ -1,3 +1,9 @@
+/*
+ * ProtectedRoute.jsx
+ * Kiểm tra xác thực và quyền trước khi truy cập route được bảo vệ.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 import { Navigate } from 'react-router-dom';
 
 const ProtectedRoute = ({ children }) => {

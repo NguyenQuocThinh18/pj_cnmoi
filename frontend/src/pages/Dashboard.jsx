@@ -1,3 +1,9 @@
+/*
+ * Dashboard.jsx
+ * Trang tổng quan nội dung.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import API_BASE_URL from '../utils/apiConfig';

@@ -1,25 +1,33 @@
+/*
+ * ChatWidget.jsx
+ * Widget chat nổi, hỗ trợ chat nhân viên và AI.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios'; // Bắt buộc phải có để gọi API AI
+import axios from 'axios'; // Dùng để gọi API khi chat với AI
 import io from 'socket.io-client';
 import API_BASE_URL from '../utils/apiConfig';
 
+// Khởi tạo socket nhưng không tự động kết nối ngay lập tức.
 const socket = io(API_BASE_URL, { autoConnect: false });
 
 function ChatWidget() {
   const navigate = useNavigate();
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(false); // Kiểm soát widget chat đóng/mở
   
-  // chatMode có 3 trạng thái: 'menu', 'live' (nhân viên), 'ai' (bot)
+  // chatMode: điều hướng nội dung chat
+  // 'menu' = menu lựa chọn, 'live' = kết nối nhân viên, 'ai' = chat bot
   const [chatMode, setChatMode] = useState('menu'); 
-  const [message, setMessage] = useState('');
-  const [chatLog, setChatLog] = useState([]); 
-  const messagesEndRef = useRef(null);
-  const chatModeRef = useRef(chatMode);
+  const [message, setMessage] = useState(''); // Nội dung người dùng nhập
+  const [chatLog, setChatLog] = useState([]); // Lưu lịch sử tin nhắn đã hiển thị
+  const messagesEndRef = useRef(null); // Dùng để scroll xuống cuối chat
+  const chatModeRef = useRef(chatMode); // Giữ giá trị chế độ chat mới nhất cho callback
 
   const [currentUser, setCurrentUser] = useState('');
   const [currentUserRole, setCurrentUserRole] = useState('user');
-  const [isBotTyping, setIsBotTyping] = useState(false); // Trạng thái AI đang suy nghĩ
+  const [isBotTyping, setIsBotTyping] = useState(false); // Hiển thị trạng thái AI đang trả lời
 
   // Lấy thông tin User hoặc tạo Khách ảo
   useEffect(() => {
@@ -69,10 +77,12 @@ function ChatWidget() {
 
   // --- CHẾ ĐỘ CHAT VỚI NHÂN VIÊN ---
   const startLiveChat = () => {
+    // Nếu socket chưa kết nối thì kết nối đến server
     if (!socket.connected) {
       socket.connect();
     }
-    socket.emit('join_room', "Support_Room"); // Gắn cố định phòng Support_Room để Admin thấy
+    // Tham gia phòng Support_Room để nhân viên hỗ trợ có thể gửi và nhận tin nhắn
+    socket.emit('join_room', "Support_Room");
     setChatLog([{ 
       sender: 'Hệ thống', 
       text: 'Đang kết nối với nhân viên, bạn vui lòng đợi nhé...', 
@@ -84,6 +94,7 @@ function ChatWidget() {
 
   // --- CHẾ ĐỘ CHAT VỚI AI ---
   const startAiChat = () => {
+    // Khởi tạo lịch sử chat cho chế độ AI
     setChatLog([{ 
       sender: '🤖 VietBot', 
       text: `Chào ${currentUser.split(' ').pop()}! Mình là Trợ lý AI của Du Lịch Việt. Mình có thể giúp gì cho bạn hôm nay?`, 
@@ -94,15 +105,15 @@ function ChatWidget() {
   };
 
   const handleSend = async (e) => {
-    e.preventDefault();
+    e.preventDefault(); // Ngăn form submit gây reload trang
     if (message.trim() !== '') {
       const msgText = message;
-      setMessage('');
+      setMessage(''); // Xóa nội dung input ngay khi người dùng gửi
       
       const currentTime = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
       const userMsg = { sender: currentUser, text: msgText, time: currentTime, role: currentUserRole };
 
-      // 1. Hiển thị ngay tin nhắn của người dùng lên màn hình
+      // 1. Hiển thị tin nhắn người dùng lên giao diện ngay lập tức
       setChatLog((prev) => {
         const last = prev[prev.length - 1];
         if (last && last.sender === userMsg.sender && last.text === userMsg.text && last.role === userMsg.role) {
@@ -111,12 +122,12 @@ function ChatWidget() {
         return [...prev, userMsg];
       });
 
-      // 2. Rẽ nhánh xử lý dựa theo Mode
+      // 2. Xử lý gửi tin nhắn theo chế độ đang bật
       if (chatMode === 'live') {
-        // --- Gửi qua Socket cho nhân viên ---
+        // Gửi tin nhắn đến server Socket để nhân viên có thể nhận
         socket.emit('send_message', { ...userMsg, room: "Support_Room" });
       } else if (chatMode === 'ai') {
-        // --- Gửi qua API cho Gemini AI ---
+        // Gửi tin nhắn đến API AI và chờ phản hồi
         setIsBotTyping(true);
         try {
           const res = await axios.post(`${API_BASE_URL}/api/chat/ai`, { message: msgText });
@@ -135,7 +146,7 @@ function ChatWidget() {
             role: 'bot' 
           }]);
         } finally {
-          setIsBotTyping(false);
+          setIsBotTyping(false); // Tắt trạng thái gõ của bot
         }
       }
     }

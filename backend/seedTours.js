@@ -1,3 +1,9 @@
+/*
+ * seedTours.js
+ * File mã nguồn: seedTours.js.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 const Tour = require('./models/Tour');

@@ -1,3 +1,9 @@
+/*
+ * Blog.js
+ * Script cũ xử lý danh sách blog.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 $(document).ready(function () {
   const urlParams = new URLSearchParams(window.location.search); //Tạo đối tượng lấy URL trang
   const page = urlParams.get("page") || 1; //Lấy chỉ số trang hiện tại

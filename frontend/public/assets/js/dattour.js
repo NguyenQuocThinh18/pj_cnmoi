@@ -1,3 +1,9 @@
+/*
+ * dattour.js
+ * Script JavaScript cho trang tĩnh cũ: dattour.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 var currentHref = window.location.href;
 
 var id = currentHref.split("=")[1];

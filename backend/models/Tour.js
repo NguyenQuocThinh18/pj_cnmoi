@@ -1,3 +1,9 @@
+/*
+ * Tour.js
+ * Mongoose model cho dữ liệu Tour.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 const mongoose = require('mongoose');
 
 const tourSchema = new mongoose.Schema(

@@ -1,3 +1,9 @@
+/*
+ * Ticket.jsx
+ * Trang vé điện tử / QR check-in.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';

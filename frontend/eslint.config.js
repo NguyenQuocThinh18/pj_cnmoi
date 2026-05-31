@@ -1,3 +1,9 @@
+/*
+ * eslint.config.js
+ * File mã nguồn: eslint.config.js.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 import js from '@eslint/js'
 import globals from 'globals'
 import reactHooks from 'eslint-plugin-react-hooks'

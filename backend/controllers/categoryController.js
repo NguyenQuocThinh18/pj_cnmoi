@@ -1,3 +1,9 @@
+/*
+ * categoryController.js
+ * Quản lý danh mục tour.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 const Category = require('../models/Category');
 
 // Lấy tất cả danh mục

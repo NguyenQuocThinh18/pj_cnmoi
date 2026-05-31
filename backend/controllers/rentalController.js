@@ -1,3 +1,9 @@
+/*
+ * rentalController.js
+ * Xử lý phiếu thuê xe và trạng thái thuê.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 const Rental = require('../models/Rental');
 const nodemailer = require('nodemailer');
 

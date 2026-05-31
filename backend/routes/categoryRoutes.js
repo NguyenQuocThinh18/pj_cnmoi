@@ -1,3 +1,9 @@
+/*
+ * categoryRoutes.js
+ * Định nghĩa các API danh mục tour.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 const express = require('express');
 const router = express.Router();
 const { verifyAdmin } = require('../middleware/verifyToken');

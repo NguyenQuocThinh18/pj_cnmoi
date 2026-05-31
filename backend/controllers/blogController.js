@@ -1,3 +1,9 @@
+/*
+ * blogController.js
+ * Xử lý CRUD bài viết blog và lấy dữ liệu blog.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 const Blog = require('../models/Blog');
 
 // Lấy tất cả bài viết (Đã thêm populate để lấy tên tác giả hiển thị lên UI)

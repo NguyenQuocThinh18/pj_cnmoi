@@ -1,3 +1,9 @@
+/*
+ * seed.js
+ * File mã nguồn: seed.js.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 require('dotenv').config();

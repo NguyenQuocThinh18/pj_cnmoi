@@ -1,3 +1,9 @@
+/*
+ * authController.js
+ * Xử lý xác thực người dùng.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -20,29 +26,39 @@ transporter.verify((error, success) => {
 });
 
 const register = async (req, res) => {
+  // Nhận dữ liệu từ body request
   const { name, email, password, phone, role } = req.body; // Thêm nhận role từ admin
   try {
+    // Kiểm tra xem email đã tồn tại trong DB chưa
     const userExists = await User.findOne({ email });
     if (userExists) return res.status(400).json({ success: false, message: 'Email đã tồn tại!' });
     
-    // Nếu admin tạo thì lấy role, nếu khách tự đăng ký thì mặc định 'user'
+    // Tạo user mới. Nếu admin truyền role thì dùng role đó, còn user thường mặc định 'user'
     await User.create({ name, email, password, phone, role: role || 'user' });
     res.status(201).json({ success: true, message: 'Đăng ký thành công!' });
-  } catch (error) { res.status(500).json({ success: false, message: "Lỗi server" }); }
+  } catch (error) {
+    // Nếu có lỗi server thì trả về 500
+    res.status(500).json({ success: false, message: "Lỗi server" });
+  }
 };
 
 const login = async (req, res) => {
   const { email, password } = req.body;
   try {
+    // Tìm user theo email
     const user = await User.findOne({ email });
     if (!user) return res.status(404).json({ success: false, message: "Email không tồn tại!" });
 
+    // So sánh password gửi lên với password đã hash trong DB
     const isPasswordCorrect = await bcrypt.compare(password, user.password);
     if (!isPasswordCorrect) return res.status(401).json({ success: false, message: "Sai mật khẩu!" });
 
+    // Tạo JWT chứa id và role của user
     const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '15d' });
     res.status(200).json({ success: true, message: "Đăng nhập thành công", token, data: user });
-  } catch (error) { res.status(500).json({ success: false, message: "Lỗi server" }); }
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Lỗi server" });
+  }
 };
 
 const forgotPassword = async (req, res) => {
@@ -52,11 +68,13 @@ const forgotPassword = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Vui lòng nhập email để khôi phục mật khẩu.' });
     }
 
+    // Tìm tài khoản theo email đã nhập
     const user = await User.findOne({ email });
     if (!user) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy email này trong hệ thống.' });
     }
 
+    // Tạo liên kết reset hoặc trang login để hiển thị trong email
     const resetLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/login`;
     const mailOptions = {
       from: `"Du Lịch Việt" <${process.env.EMAIL_USER}>`,
@@ -76,6 +94,7 @@ const forgotPassword = async (req, res) => {
       `,
     };
 
+    // Gửi email qua transporter đã cấu hình Gmail
     transporter.sendMail(mailOptions, (error) => {
       if (error) {
         console.log('❌ Lỗi gửi email khôi phục mật khẩu:', error.message);

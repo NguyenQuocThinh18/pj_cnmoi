@@ -1,3 +1,9 @@
+/*
+ * TaiKhoan.js
+ * Script cũ cho trang tài khoản.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 $(document).ready(function () {
   function removeAscent(str) {
     if (str === null || str === undefined) return str;

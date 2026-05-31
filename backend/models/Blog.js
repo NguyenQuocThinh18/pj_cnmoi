@@ -1,3 +1,9 @@
+/*
+ * Blog.js
+ * Script cũ xử lý danh sách blog.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 const mongoose = require('mongoose');
 
 const blogSchema = new mongoose.Schema(

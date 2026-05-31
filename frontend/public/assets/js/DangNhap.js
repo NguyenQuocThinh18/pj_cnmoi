@@ -1,3 +1,9 @@
+/*
+ * DangNhap.js
+ * Script JavaScript cho trang tĩnh cũ: DangNhap.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 $(document).ready(function () {
   $("#btndn").click(function (e) {
     e.preventDefault();

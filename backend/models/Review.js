@@ -1,3 +1,9 @@
+/*
+ * Review.js
+ * Mongoose model cho dữ liệu Review.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 const mongoose = require('mongoose');
 
 const reviewSchema = new mongoose.Schema(

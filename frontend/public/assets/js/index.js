@@ -1,3 +1,9 @@
+/*
+ * index.js
+ * Script JavaScript cho trang tĩnh cũ: index.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 $(document).ready(function () {
   $.getJSON("../data/TopTourTrongNuoc.json", function (data) {
     let tours = data.tours;

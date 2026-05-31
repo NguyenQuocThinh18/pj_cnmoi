@@ -1,3 +1,9 @@
+/*
+ * Chat.js
+ * Mongoose model cho dữ liệu Chat.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 const mongoose = require('mongoose');
 
 const chatSchema = new mongoose.Schema({

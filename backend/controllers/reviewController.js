@@ -1,3 +1,9 @@
+/*
+ * reviewController.js
+ * Quản lý bình luận đánh giá và xóa review không phù hợp.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 const Review = require('../models/Review');
 
 // Gửi đánh giá mới

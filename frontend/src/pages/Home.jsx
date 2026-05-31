@@ -1,3 +1,9 @@
+/*
+ * Home.jsx
+ * Trang chủ với banner, tour nổi bật và mục giới thiệu.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';

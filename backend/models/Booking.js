@@ -1,3 +1,9 @@
+/*
+ * Booking.js
+ * Mongoose model cho dữ liệu Booking.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 const mongoose = require('mongoose');
 
 const bookingSchema = new mongoose.Schema(

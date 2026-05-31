@@ -1,3 +1,9 @@
+/*
+ * vite.config.js
+ * File mã nguồn: vite.config.js.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'

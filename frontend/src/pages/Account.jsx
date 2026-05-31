@@ -1,3 +1,9 @@
+/*
+ * Account.jsx
+ * Trang quản lý thông tin cá nhân người dùng.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';

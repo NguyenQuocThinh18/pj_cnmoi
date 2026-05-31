@@ -1,3 +1,9 @@
+/*
+ * tourController_new.js
+ * Phiên bản bổ sung hoặc logic tour mới.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 const Tour = require('../models/Tour');
 
 // Lấy tất cả tours (hỗ trợ search/filter qua query params)

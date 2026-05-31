@@ -1,3 +1,9 @@
+/*
+ * carRoutes.js
+ * Định nghĩa các API quản lý xe.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 const express = require('express');
 const router = express.Router();
 const { verifyAdminOrStaff } = require('../middleware/verifyToken');

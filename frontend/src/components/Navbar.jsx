@@ -1,3 +1,9 @@
+/*
+ * Navbar.jsx
+ * Thanh điều hướng chính của giao diện.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';

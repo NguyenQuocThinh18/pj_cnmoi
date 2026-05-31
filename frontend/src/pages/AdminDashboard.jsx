@@ -1,3 +1,9 @@
+/*
+ * AdminDashboard.jsx
+ * React page component cho trang AdminDashboard.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';

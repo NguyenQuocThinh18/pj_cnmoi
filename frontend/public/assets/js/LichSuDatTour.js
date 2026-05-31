@@ -1,3 +1,9 @@
+/*
+ * LichSuDatTour.js
+ * Script cũ cho lịch sử đặt tour.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 $(document).ready(function () {
   function huyTour(index) {
     let user = JSON.parse(localStorage.getItem("user"));

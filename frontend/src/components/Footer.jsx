@@ -1,3 +1,9 @@
+/*
+ * Footer.jsx
+ * Footer hiển thị thông tin liên hệ và liên kết.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 function Footer() {
   return (
     <footer className="bg-dark text-white pt-5 pb-3 mt-auto">

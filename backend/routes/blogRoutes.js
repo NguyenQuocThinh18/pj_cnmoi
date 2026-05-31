@@ -1,3 +1,9 @@
+/*
+ * blogRoutes.js
+ * Định nghĩa các API bài viết blog.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 const express = require('express');
 const router = express.Router();
 // Import thêm middleware phân quyền

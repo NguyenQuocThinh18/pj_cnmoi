@@ -1,3 +1,9 @@
+/*
+ * userRoutes.js
+ * Định nghĩa các API người dùng.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 const express = require('express');
 const router = express.Router();
 

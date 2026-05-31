@@ -1,3 +1,9 @@
+/*
+ * Contact.jsx
+ * Trang liên hệ với form gửi tin nhắn.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 function Contact() {
   return (
     <div className="bg-light pb-5" style={{ minHeight: '100vh' }}>

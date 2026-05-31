@@ -1,3 +1,9 @@
+/*
+ * Rental.js
+ * Mongoose model cho dữ liệu Rental.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 const mongoose = require('mongoose');
 
 const rentalSchema = new mongoose.Schema({

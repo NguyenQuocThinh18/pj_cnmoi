@@ -1,3 +1,9 @@
+/*
+ * BlogDetail.jsx
+ * Trang chi tiết bài viết blog.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';

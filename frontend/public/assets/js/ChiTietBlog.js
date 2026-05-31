@@ -1,3 +1,9 @@
+/*
+ * ChiTietBlog.js
+ * Script cũ cho trang blog chi tiết.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 $(document).ready(function () {
   // Lấy tham số từ URL
   const urlParams = new URLSearchParams(window.location.search);

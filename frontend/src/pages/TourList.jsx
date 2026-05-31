@@ -1,3 +1,9 @@
+/*
+ * TourList.jsx
+ * Trang danh sách tour với bộ lọc và tìm kiếm.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 import { useState, useEffect, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';

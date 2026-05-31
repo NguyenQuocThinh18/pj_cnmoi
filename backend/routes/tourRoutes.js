@@ -1,3 +1,9 @@
+/*
+ * tourRoutes.js
+ * Định nghĩa các API tour du lịch.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 const express = require('express');
 const router = express.Router();
 // Đã thay đổi import middleware

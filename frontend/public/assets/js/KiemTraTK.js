@@ -1,3 +1,9 @@
+/*
+ * KiemTraTK.js
+ * Script cũ xử lý kiểm tra tài khoản.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 $(document).ready(function () {
   // Lấy thông tin user từ localStorage
   let user = JSON.parse(localStorage.getItem("user"));

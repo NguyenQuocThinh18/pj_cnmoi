@@ -1,21 +1,33 @@
+/*
+ * ForgotPassword.jsx
+ * Trang khôi phục mật khẩu với logic giả lập gửi yêu cầu.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 
 function ForgotPassword() {
+  // email: giữ giá trị input email người dùng nhập
   const [email, setEmail] = useState('');
+  // status: trạng thái của form, dùng để hiển thị loading/success
   const [status, setStatus] = useState(''); // 'loading', 'success'
+  // message: thông báo hiển thị sau khi gửi yêu cầu
   const [message, setMessage] = useState('');
 
+  // Hàm giả lập gửi yêu cầu khôi phục mật khẩu
   const simulateForgotPassword = () => {
     setStatus('success');
     setMessage(`Môi trường giả lập: Yêu cầu khôi phục mật khẩu đã được gửi đến ${email}. Bạn có thể xem thông báo này như một bước xác nhận khôi phục mật khẩu.`);
   };
 
+  // Xử lý khi người dùng bấm nút gửi form
   const handleSubmit = (e) => {
-    e.preventDefault();
-    setStatus('loading');
-    setMessage('');
+    e.preventDefault(); // Ngăn trình duyệt reload trang khi submit form
+    setStatus('loading'); // Hiển thị loading spinner
+    setMessage(''); // Xóa thông báo cũ nếu có
 
+    // Chờ 0.5s và sau đó gọi hàm giả lập
     setTimeout(() => {
       simulateForgotPassword();
     }, 500);

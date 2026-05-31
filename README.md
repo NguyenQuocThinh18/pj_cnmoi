@@ -1,4 +1,7 @@
 # 🌍 Website Quản Lý Đặt Tour Du Lịch - Du Lịch Việt
+## 📘 Tài liệu mã nguồn
+* Đã bổ sung CODE_NOTES.md giải thích chi tiết chức năng từng file.
+
 
 Dự án Đồ án môn học / Khóa luận tốt nghiệp xây dựng hệ thống quản lý và đặt tour du lịch trực tuyến sử dụng mô hình **MERN Stack** (MongoDB, Express, ReactJS, NodeJS).
 
@@ -27,6 +30,11 @@ Dự án Đồ án môn học / Khóa luận tốt nghiệp xây dựng hệ th�
 * **Database:** MongoDB & Mongoose (ODM).
 * **Xác thực:** JSON Web Token (JWT) & Bcrypt.js.
 * **Công cụ khác:** Dotenv, CORS, PlantUML (vẽ sơ đồ hệ thống).
+
+## 🔧 Cập nhật mới
+* Đã ẩn nút Chat với AI trong widget chat để chỉ giữ lại tùy chọn Chat với Nhân viên.
+* Trang ForgotPassword hiện chạy chế độ giả lập khôi phục mật khẩu khi backend/email chưa sẵn sàng.
+* Khi người dùng nhấn GỬI YÊU CẦU, hệ thống sẽ hiển thị phản hồi thành công giả lập ngay lập tức.
 
 ## Sơ đồ Use Case tổng quát
 <img width="1042" height="604" alt="image" src="https://github.com/user-attachments/assets/50eeed75-ea15-4b55-aa8a-2df20589a588" />

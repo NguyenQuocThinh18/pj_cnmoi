@@ -1,3 +1,9 @@
+/*
+ * TourNuocNgoai.js
+ * Script cũ cho tour nước ngoài.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 $(document).ready(function () {
   // Lấy tham số type từ URL
   const urlParams = new URLSearchParams(window.location.search);

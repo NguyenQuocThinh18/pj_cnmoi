@@ -1,3 +1,9 @@
+/*
+ * TourTrongNuoc.js
+ * Script cũ cho tour trong nước.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 
 $(document).ready(function () {
   // Lấy tham số type từ URL

@@ -1,3 +1,9 @@
+/*
+ * OrderTracking.jsx
+ * Trang tra cứu đơn đặt tour.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';

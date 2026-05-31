@@ -1,3 +1,9 @@
+/*
+ * carController.js
+ * Quản lý dữ liệu xe cho thuê.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 const Car = require('../models/Car');
 
 // 1. [CREATE] Thêm xe mới

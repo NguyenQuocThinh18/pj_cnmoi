@@ -1,3 +1,9 @@
+/*
+ * TicketModal.jsx
+ * Modal hiển thị vé hoặc QR check-in.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 import { Modal } from 'react-bootstrap';
 import { QRCodeSVG } from 'qrcode.react';
 

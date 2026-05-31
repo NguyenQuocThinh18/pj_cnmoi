@@ -1,3 +1,9 @@
+/*
+ * LienHe.js
+ * Script cũ cho trang liên hệ.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 $.getJSON("../data/ChiTietTour.json", function (data) {
   var tour = data.data;
   let sl = tour.length;

@@ -1,3 +1,9 @@
+/*
+ * DangKy.js
+ * Script cũ xử lý form đăng ký trang tĩnh.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 $(document).ready(function () {
   function removeAscent(str) {
     if (str === null || str === undefined) return str;

@@ -1,3 +1,9 @@
+/*
+ * GioiThieu.js
+ * Script JavaScript cho trang tĩnh cũ: GioiThieu.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 document.addEventListener("DOMContentLoaded", function () {
   var links = document.querySelectorAll(".title_booking a");
   links.forEach(function (link) {

@@ -1,3 +1,9 @@
+/*
+ * userController.js
+ * Quản lý người dùng, phân quyền và thông tin tài khoản.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 const User = require('../models/User');
 const bcrypt = require('bcryptjs'); // ⚡ ĐÃ THÊM: Thư viện mã hóa mật khẩu
 

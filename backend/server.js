@@ -1,3 +1,9 @@
+/*
+ * server.js
+ * Entrypoint của server backend. Thiết lập Express, middleware, routes và khởi động port.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 const express = require('express');
 const dotenv = require('dotenv');
 const cors = require('cors');

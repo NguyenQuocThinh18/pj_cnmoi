@@ -1,3 +1,9 @@
+/*
+ * About.jsx
+ * Trang giới thiệu về công ty.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 import { Link } from 'react-router-dom';
 
 function About() {

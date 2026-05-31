@@ -1,3 +1,9 @@
+/*
+ * Car.js
+ * Mongoose model cho dữ liệu Car.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 const mongoose = require('mongoose');
 
 const carSchema = new mongoose.Schema({

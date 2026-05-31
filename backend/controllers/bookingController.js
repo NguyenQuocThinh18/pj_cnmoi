@@ -1,3 +1,9 @@
+/*
+ * bookingController.js
+ * Xử lý dữ liệu đặt tour, cập nhật và truy vấn đơn hàng.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 const mongoose = require('mongoose');
 const Booking = require('../models/Booking');
 const User = require('../models/User'); 

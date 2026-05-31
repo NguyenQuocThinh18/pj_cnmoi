@@ -1,3 +1,9 @@
+/*
+ * App.jsx
+ * Định nghĩa route chính của ứng dụng React.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 import { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Navbar from './components/Navbar'; 

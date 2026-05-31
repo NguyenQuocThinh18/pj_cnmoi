@@ -1,3 +1,9 @@
+/*
+ * seedBlogs.js
+ * File mã nguồn: seedBlogs.js.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 const Blog = require('./models/Blog');

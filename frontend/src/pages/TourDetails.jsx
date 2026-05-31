@@ -1,3 +1,9 @@
+/*
+ * TourDetails.jsx
+ * Trang hiển thị chi tiết một tour du lịch.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';

@@ -1,3 +1,9 @@
+/*
+ * Login.jsx
+ * Trang đăng nhập người dùng.
+ * Chèn chú thích giải thích mục đích chính của file.
+ */
+
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
