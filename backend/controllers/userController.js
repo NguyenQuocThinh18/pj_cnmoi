@@ -99,6 +99,11 @@ const deleteUser = async (req, res) => {
 const updateProfile = async (req, res) => {
   try {
     const { name, phone } = req.body;
+    const phoneRegex = /^\+?[\d\s\-]{9,15}$/;
+    if (phone && !phoneRegex.test(phone.trim())) {
+      return res.status(400).json({ success: false, message: 'Số điện thoại không hợp lệ. Vui lòng nhập 9-15 chữ số.' });
+    }
+
     const updatedUser = await User.findByIdAndUpdate(
       req.params.id,
       { $set: { name, phone } },

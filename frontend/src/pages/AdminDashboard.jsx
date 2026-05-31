@@ -251,8 +251,22 @@ function AdminDashboard() {
     }
   };
 
+  const sanitizePhoneInput = (value) => {
+    return String(value || '').replace(/\D/g, '');
+  };
+
+  const isValidEmail = (email) => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim().toLowerCase());
+  };
+
+  const getTodayDateString = () => new Date().toISOString().split('T')[0];
+
   const handleRentalInputChange = (e) => {
-    setRentalFormData({ ...rentalFormData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setRentalFormData(prev => ({
+      ...prev,
+      [name]: name === 'phone' ? sanitizePhoneInput(value) : value
+    }));
   };
 
   const resetRentalForm = () => {
@@ -276,20 +290,36 @@ function AdminDashboard() {
     try {
       const cfg = getAuthHeaders();
       if (!cfg) return showNotification('Bạn chưa đăng nhập!', 'danger');
+
       const submitData = { ...rentalFormData };
+      const todayString = getTodayDateString();
+      const rentalDate = submitData.date ? new Date(submitData.date) : null;
+      const endDate = submitData.endDate ? new Date(submitData.endDate) : null;
+
+      if (!submitData.name?.trim()) return showNotification('Vui lòng nhập tên khách hàng.', 'danger');
+      if (!submitData.phone) return showNotification('Vui lòng nhập số điện thoại.', 'danger');
+      if (!/^[0-9]+$/.test(submitData.phone)) return showNotification('Số điện thoại chỉ được chứa chữ số.', 'danger');
+      if (submitData.phone.length < 9) return showNotification('Số điện thoại phải có ít nhất 9 chữ số.', 'danger');
+      if (!submitData.email) return showNotification('Vui lòng nhập email.', 'danger');
+      if (!isValidEmail(submitData.email)) return showNotification('Email không hợp lệ.', 'danger');
+      if (!submitData.destination?.trim()) return showNotification('Vui lòng nhập lộ trình / điểm đến.', 'danger');
+      if (!submitData.date) return showNotification('Vui lòng chọn ngày khởi hành.', 'danger');
+      if (rentalDate < new Date(todayString)) return showNotification('Ngày khởi hành không được trước hôm nay.', 'danger');
+      if (!submitData.endDate) return showNotification('Vui lòng chọn ngày kết thúc thuê.', 'danger');
+      if (endDate < rentalDate) return showNotification('Ngày kết thúc phải sau hoặc bằng ngày khởi hành.', 'danger');
 
       if (isEditingRental) {
         await axios.put(`${API_BASE_URL}/api/rentals/${submitData._id}`, submitData, cfg);
         showNotification('Cập nhật thông tin phiếu thuê xe thành công!', 'success');
       } else {
-        delete submitData._id; 
+        delete submitData._id;
         await axios.post(`${API_BASE_URL}/api/rentals`, submitData, cfg);
         showNotification('Thêm mới phiếu thuê xe du lịch thành công!', 'success');
       }
       resetRentalForm();
       fetchData();
     } catch (error) {
-      showNotification('Gặp lỗi khi đồng bộ dữ liệu xe lên server!', 'danger');
+      showNotification(error.response?.data?.message || 'Gặp lỗi khi đồng bộ dữ liệu xe lên server!', 'danger');
     }
   };
 
@@ -319,6 +349,17 @@ function AdminDashboard() {
   const handleCarInputChange = (e) => {
     const { name, value } = e.target;
     setCarFormData(prev => ({ ...prev, [name]: name === 'seats' || name === 'pricePerDay' || name === 'yearManufactured' ? Number(value) : value }));
+  };
+
+  const handleCarFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setCarFormData(prev => ({ ...prev, image: reader.result }));
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const resetCarForm = () => {
@@ -567,6 +608,9 @@ function AdminDashboard() {
       if (!cfg) { showNotification('Bạn chưa đăng nhập hoặc token đã hết hạn!', 'danger'); return; }
       
       const submitData = {...blogFormData};
+      if (!submitData.image) {
+        return showNotification('Vui lòng chọn ảnh bìa cho bài viết.', 'danger');
+      }
       if (isEditingBlog) {
         await axios.put(`${API_BASE_URL}/api/blogs/${submitData._id}`, submitData, cfg);
         showNotification('Lưu bài viết thành công!', 'success');
@@ -576,7 +620,7 @@ function AdminDashboard() {
         showNotification('Đăng bài mới thành công!', 'success');
       }
       setShowBlogForm(false); setIsEditingBlog(false); fetchData();
-    } catch (error) { showNotification(`Lỗi khi lưu Blog: ${error.message}`, 'danger'); }
+    } catch (error) { showNotification(`Lỗi khi lưu Blog: ${error.response?.data?.message || error.message}`, 'danger'); }
   };
 
   const handleDeleteBlog = async (id) => {
@@ -667,7 +711,10 @@ function AdminDashboard() {
   const handleStaffBookingInputChange = (e) => {
     const { name, value } = e.target;
     setStaffBookingForm(prev => {
-      const updated = { ...prev, [name]: name === 'guestSize' ? Number(value) : value };
+      const updated = {
+        ...prev,
+        [name]: name === 'guestSize' ? Number(value) : name === 'phone' ? sanitizePhoneInput(value) : value
+      };
       if (name === 'tourId' || name === 'guestSize') {
         const tour = tours.find(t => t._id === (name === 'tourId' ? value : prev.tourId));
         if (tour) {
@@ -690,6 +737,9 @@ function AdminDashboard() {
       if (!tourId || !name || !phone || !guestSize || !totalPrice) {
         return showNotification('Vui lòng điền đầy đủ thông tin đặt tour cho khách.', 'danger');
       }
+      if (!/^[0-9]+$/.test(phone)) return showNotification('Số điện thoại chỉ được chứa chữ số.', 'danger');
+      if (phone.length < 9) return showNotification('Số điện thoại phải có ít nhất 9 chữ số.', 'danger');
+      if (email && !isValidEmail(email)) return showNotification('Email không hợp lệ.', 'danger');
       await axios.post(`${API_BASE_URL}/api/bookings`, { tourId, name, email, phone, guestSize, totalPrice, paymentMethod });
       showNotification('Đã tạo đơn đặt tour cho khách hàng.', 'success');
       resetStaffBookingForm(); fetchData();
@@ -703,6 +753,15 @@ function AdminDashboard() {
       if (!cfg) return showNotification('Bạn chưa đăng nhập!', 'danger');
       
       const submitData = {...formData};
+      if (!submitData.startDate || !submitData.endDate) {
+        return showNotification('Vui lòng chọn ngày khởi hành và ngày kết thúc.', 'danger');
+      }
+      if (new Date(submitData.startDate) > new Date(submitData.endDate)) {
+        return showNotification('Ngày kết thúc phải cùng ngày hoặc sau ngày khởi hành.', 'danger');
+      }
+      if (!submitData.image) {
+        return showNotification('Vui lòng tải lên ảnh tour trước khi lưu.', 'danger');
+      }
       
       if (isEditing) {
         await axios.put(`${API_BASE_URL}/api/tours/${submitData._id}`, submitData, cfg);
@@ -713,7 +772,10 @@ function AdminDashboard() {
         showNotification('Thêm tour mới thành công!', 'success');
       }
       resetForm(); fetchData(); 
-    } catch (error) { showNotification(`Lưu không thành công`, 'danger'); }
+    } catch (error) {
+      const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || 'Lưu không thành công';
+      showNotification(errorMessage, 'danger');
+    }
   };
 
   const handleUserInputChange = (e) => setUserFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -744,6 +806,8 @@ function AdminDashboard() {
 
   const handleViewTour = (tour) => { setSelectedTour(tour); };
   const handleCloseTourModal = () => { setSelectedTour(null); };
+  const handleViewBooking = (booking) => { setSelectedBooking(booking); };
+  const handleCloseBookingModal = () => { setSelectedBooking(null); };
 
   if (loading) return (
     <div className="bg-light pb-5" style={{ minHeight: '100vh' }}>
@@ -872,12 +936,12 @@ function AdminDashboard() {
                         <div className="col-md-3"><label className="small fw-bold">Thời lượng tour</label><input type="text" className="form-control" name="duration" value={formData.duration || ''} onChange={handleInputChange} placeholder="VD: 3 ngày 2 đêm" required /></div>
                         <div className="col-md-3"><label className="small fw-bold">Ghế trống</label><input type="number" className="form-control" name="availableSeats" value={formData.availableSeats || ''} onChange={handleInputChange} required /></div>
                         <div className="col-md-3"><label className="small fw-bold">Danh mục</label><select className="form-select" name="category" value={formData.category || ''} onChange={handleInputChange} required><option value="">-- Chọn danh mục --</option>{availableCategories.map((cat) => (<option key={cat} value={cat}>{cat}</option>))}</select></div>
-                        <div className="col-md-6"><label className="small fw-bold">Ngày khởi hành</label><input type="text" className="form-control" name="startDate" value={formData.startDate || ''} onChange={handleInputChange} required /></div>
-                        <div className="col-md-6"><label className="small fw-bold">Ngày kết thúc</label><input type="text" className="form-control" name="endDate" value={formData.endDate || ''} onChange={handleInputChange} required /></div>
+                        <div className="col-md-6"><label className="small fw-bold">Ngày khởi hành</label><input type="date" className="form-control" name="startDate" value={formData.startDate || ''} onChange={handleInputChange} required /></div>
+                        <div className="col-md-6"><label className="small fw-bold">Ngày kết thúc</label><input type="date" className="form-control" name="endDate" value={formData.endDate || ''} onChange={handleInputChange} required /></div>
                         
                         <div className="col-md-12">
                           <label className="small fw-bold text-primary"><i className="bi bi-folder2-open me-1"></i> Tải ảnh từ thiết bị của bạn</label>
-                          <input type="file" className="form-control border-info" accept="image/*" onChange={handleTourFileChange} />
+                          <input type="file" className="form-control border-info" accept="image/*" onChange={handleTourFileChange} required={!isEditing} />
                           {formData.image && (
                             <div className="mt-3">
                               <span className="small text-muted d-block mb-1">Hình ảnh đang chọn:</span>
@@ -942,7 +1006,7 @@ function AdminDashboard() {
                       <div className="col-md-3"><label className="small fw-bold">Số khách</label><input type="number" className="form-control" name="guestSize" min="1" value={staffBookingForm.guestSize || ''} onChange={handleStaffBookingInputChange} required /></div>
                       <div className="col-md-3"><label className="small fw-bold">Tổng tiền (VNĐ)</label><input type="text" readOnly className="form-control" value={staffBookingForm.totalPrice ? staffBookingForm.totalPrice.toLocaleString() + ' đ' : '0 đ'} /></div>
                       <div className="col-md-6"><label className="small fw-bold">Tên khách</label><input type="text" className="form-control" name="name" value={staffBookingForm.name || ''} onChange={handleStaffBookingInputChange} required /></div>
-                      <div className="col-md-3"><label className="small fw-bold">Điện thoại</label><input type="text" className="form-control" name="phone" value={staffBookingForm.phone || ''} onChange={handleStaffBookingInputChange} required /></div>
+                      <div className="col-md-3"><label className="small fw-bold">Điện thoại</label><input type="tel" inputMode="numeric" pattern="\d*" maxLength={15} className="form-control" name="phone" value={staffBookingForm.phone || ''} onChange={handleStaffBookingInputChange} required /></div>
                       <div className="col-md-3"><label className="small fw-bold">Email</label><input type="email" className="form-control" name="email" value={staffBookingForm.email || ''} onChange={handleStaffBookingInputChange} /></div>
                       <div className="col-12 d-flex gap-2 justify-content-end">
                         <button type="button" className="btn btn-outline-secondary rounded-pill" onClick={resetStaffBookingForm}>Xóa dữ liệu</button>
@@ -975,7 +1039,7 @@ function AdminDashboard() {
                                   <button className="btn btn-sm btn-danger rounded-pill" onClick={() => handleUpdateStatus(b._id, 'cancelled')}><i className="bi bi-x-lg"></i></button>
                                 </>
                               )}
-                              <button className="btn btn-sm btn-info text-white rounded-pill" onClick={() => setSelectedBooking(b)}><i className="bi bi-eye"></i></button>
+                              <button className="btn btn-sm btn-info text-white rounded-pill" onClick={() => handleViewBooking(b)}><i className="bi bi-eye"></i></button>
                             </div>
                           </td>
                         </tr>
@@ -1262,7 +1326,7 @@ function AdminDashboard() {
                     <form onSubmit={handleSubmitRental}>
                       <div className="row g-3">
                         <div className="col-md-4"><label className="small fw-bold">Tên khách hàng *</label><input type="text" className="form-control" name="name" value={rentalFormData.name || ''} onChange={handleRentalInputChange} required /></div>
-                        <div className="col-md-4"><label className="small fw-bold">Số điện thoại *</label><input type="tel" className="form-control" name="phone" value={rentalFormData.phone || ''} onChange={handleRentalInputChange} required /></div>
+                        <div className="col-md-4"><label className="small fw-bold">Số điện thoại *</label><input type="tel" className="form-control" name="phone" inputMode="numeric" pattern="\d*" maxLength={15} value={rentalFormData.phone || ''} onChange={handleRentalInputChange} required /></div>
                         <div className="col-md-4"><label className="small fw-bold">Địa chỉ Email *</label><input type="email" className="form-control" name="email" value={rentalFormData.email || ''} onChange={handleRentalInputChange} required /></div>
                         
                         <div className="col-md-6"><label className="small fw-bold">Lộ trình / Điểm đến *</label><input type="text" className="form-control" name="destination" placeholder="VD: Đi Vũng Tàu..." value={rentalFormData.destination || ''} onChange={handleRentalInputChange} required /></div>
@@ -1282,8 +1346,8 @@ function AdminDashboard() {
                           </select>
                         </div>
 
-                        <div className="col-md-6"><label className="small fw-bold">Ngày khởi hành *</label><input type="date" className="form-control" name="date" value={rentalFormData.date || ''} onChange={handleRentalInputChange} required /></div>
-                        <div className="col-md-6"><label className="small fw-bold">Ngày kết thúc thuê *</label><input type="date" className="form-control" name="endDate" value={rentalFormData.endDate || ''} onChange={handleRentalInputChange} required /></div>
+                        <div className="col-md-6"><label className="small fw-bold">Ngày khởi hành *</label><input type="date" className="form-control" name="date" min={getTodayDateString()} value={rentalFormData.date || ''} onChange={handleRentalInputChange} required /></div>
+                        <div className="col-md-6"><label className="small fw-bold">Ngày kết thúc thuê *</label><input type="date" className="form-control" name="endDate" min={rentalFormData.date || getTodayDateString()} value={rentalFormData.endDate || ''} onChange={handleRentalInputChange} required /></div>
                       </div>
                       <div className="d-flex gap-2 mt-4 justify-content-end">
                         <button type="button" className="btn btn-outline-secondary rounded-pill px-4" onClick={resetRentalForm}>Hủy bỏ</button>
@@ -1348,7 +1412,14 @@ function AdminDashboard() {
               <div className="animation-fade-in">
                 <div className="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center mb-4 gap-2">
                   <h4 className="fw-bold mb-0"><i className="bi bi-car-front text-success me-2"></i>Quản lý Kho Xe</h4>
-                  <button className="btn btn-sm btn-success text-white rounded-pill px-3 shadow-sm fw-bold" onClick={() => { setShowCarForm(!showCarForm); setIsEditingCar(false); if(showCarForm) resetCarForm(); }}>
+                  <button className="btn btn-sm btn-success text-white rounded-pill px-3 shadow-sm fw-bold" onClick={() => {
+                    const nextVisible = !showCarForm;
+                    setShowCarForm(nextVisible);
+                    setIsEditingCar(false);
+                    if (nextVisible) {
+                      setCarFormData({ _id: '', name: '', carType: 'Van', seats: 16, pricePerDay: 1000000, description: '', image: '', features: [], licensePlate: '', manufacturer: '', yearManufactured: new Date().getFullYear() });
+                    }
+                  }}>
                     {showCarForm ? 'Đóng form' : '+ Thêm xe mới'}
                   </button>
                 </div>
@@ -1487,6 +1558,103 @@ function AdminDashboard() {
           </div>
         </div>
       </div>
+
+      {selectedTour && (
+        <div className="modal-overlay" onClick={handleCloseTourModal}>
+          <div className="modal-box p-4" onClick={(e) => e.stopPropagation()}>
+            <div className="d-flex justify-content-between align-items-start mb-3">
+              <div>
+                <h5 className="fw-bold mb-1">{selectedTour.title || 'Chi tiết Tour'}</h5>
+                <div className="text-muted small">{selectedTour.city ? `Điểm đến: ${selectedTour.city}` : 'Không có điểm đến'}</div>
+              </div>
+              <button type="button" className="btn btn-sm btn-outline-secondary" onClick={handleCloseTourModal}>
+                <i className="bi bi-x-lg"></i>
+              </button>
+            </div>
+            <img
+              src={selectedTour.image?.startsWith('data:') ? selectedTour.image : resolveImageUrl(selectedTour.image)}
+              alt={selectedTour.title}
+              className="rounded mb-3 w-100"
+              style={{ maxHeight: '260px', objectFit: 'cover' }}
+              onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1583417319070-4a69db38a482?auto=format&fit=crop&w=800&q=80'; }}
+            />
+            <div className="row g-3 mb-3">
+              <div className="col-12">
+                <div className="d-flex flex-wrap gap-2">
+                  <span className="badge bg-info text-white">Giá: {Number(selectedTour.price || 0).toLocaleString()} đ</span>
+                  <span className="badge bg-success text-white">Thời lượng: {selectedTour.duration || 'Không xác định'}</span>
+                  <span className="badge bg-warning text-dark">Chỗ trống: {selectedTour.availableSeats || 0}</span>
+                  <span className="badge bg-secondary text-white">Danh mục: {selectedTour.category || 'Chưa phân loại'}</span>
+                </div>
+              </div>
+              <div className="col-md-6">
+                <strong>Ngày khởi hành</strong>
+                <div>{selectedTour.startDate || '---'}</div>
+              </div>
+              <div className="col-md-6">
+                <strong>Ngày kết thúc</strong>
+                <div>{selectedTour.endDate || '---'}</div>
+              </div>
+              <div className="col-12">
+                <strong>Mô tả</strong>
+                <p className="text-muted mb-0">{selectedTour.description || 'Không có mô tả chi tiết.'}</p>
+              </div>
+            </div>
+            <div className="text-end">
+              <button type="button" className="btn btn-secondary rounded-pill" onClick={handleCloseTourModal}>Đóng</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedBooking && (
+        <div className="modal-overlay" onClick={handleCloseBookingModal}>
+          <div className="modal-box p-4" onClick={(e) => e.stopPropagation()}>
+            <div className="d-flex justify-content-between align-items-start mb-3">
+              <div>
+                <h5 className="fw-bold mb-1">Chi tiết Đơn đặt</h5>
+                <div className="text-muted small">Mã đơn: #{String(selectedBooking._id || '').substring(18).toUpperCase()}</div>
+              </div>
+              <button type="button" className="btn btn-sm btn-outline-secondary" onClick={handleCloseBookingModal}>
+                <i className="bi bi-x-lg"></i>
+              </button>
+            </div>
+            <div className="row g-3 mb-3">
+              <div className="col-md-6">
+                <strong>Khách hàng</strong>
+                <div>{selectedBooking.userId?.name || selectedBooking.name || 'Khách vãng lai'}</div>
+              </div>
+              <div className="col-md-6">
+                <strong>Điện thoại</strong>
+                <div>{selectedBooking.userId?.phone || selectedBooking.phone || '---'}</div>
+              </div>
+              <div className="col-md-6">
+                <strong>Tour</strong>
+                <div>{selectedBooking.tourId?.title || 'Tour đã xóa'}</div>
+              </div>
+              <div className="col-md-6">
+                <strong>Số khách</strong>
+                <div>{selectedBooking.guestSize || 1} người</div>
+              </div>
+              <div className="col-md-6">
+                <strong>Trạng thái</strong>
+                <div>{selectedBooking.status === 'paid' ? 'Đã thanh toán' : selectedBooking.status === 'cancelled' ? 'Đã hủy' : 'Chờ xử lý'}</div>
+              </div>
+              <div className="col-md-6">
+                <strong>Tổng tiền</strong>
+                <div>{Number(selectedBooking.totalPrice || 0).toLocaleString()} đ</div>
+              </div>
+              <div className="col-md-12">
+                <strong>Ghi chú</strong>
+                <p className="text-muted mb-0">{selectedBooking.note || selectedBooking.message || 'Không có ghi chú thêm.'}</p>
+              </div>
+            </div>
+            <div className="text-end">
+              <button type="button" className="btn btn-secondary rounded-pill" onClick={handleCloseBookingModal}>Đóng</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -2,18 +2,18 @@ const Tour = require('../models/Tour');
 const Booking = require('../models/Booking'); // Dùng để tính toán số ghế
 const slugify = require('slugify'); 
 
-// 1. [POST] /api/tours - Tạo tour mới (CHỈ ADMIN MỚI ĐƯỢC TẠO)
+// 1. [POST] /api/tours - Tạo tour mới (Admin hoặc Staff)
 const createTour = async (req, res) => {
   try {
-    // --- CHỐT CHẶN BẢO MẬT: Kiểm tra quyền Admin ---
-    // (Giả sử middleware xác thực của bạn đã gắn thông tin user vào req.user)
-    if (req.user && req.user.role !== 'admin') {
-      return res.status(403).json({ success: false, message: 'Từ chối truy cập: Chỉ Admin mới có quyền Thêm Tour!' });
+    // --- CHỐT CHẶN BẢO MẬT: Kiểm tra quyền Admin/Staff ---
+    if (req.user && req.user.role !== 'admin' && req.user.role !== 'staff') {
+      return res.status(403).json({ success: false, message: 'Từ chối truy cập: Chỉ Admin hoặc Staff mới có quyền Thêm Tour!' });
     }
 
     const { title, city, price, duration, availableSeats, startDate, endDate, image, description, category } = req.body;
     
-    if (!title || !city || !price || !duration || !availableSeats || !startDate || !endDate || !image || !description || !category) {
+    const finalImage = image || 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?w=500';
+    if (!title || !city || !price || !duration || !availableSeats || !startDate || !endDate || !description || !category) {
       return res.status(400).json({ success: false, message: 'Vui lòng điền đầy đủ thông tin!' });
     }
     
@@ -29,7 +29,10 @@ const createTour = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Vui lòng nhập thời lượng tour!' });
     }
     
-    const newTour = new Tour(req.body);
+    const newTour = new Tour({
+      ...req.body,
+      image: finalImage
+    });
     const savedTour = await newTour.save();
     
     res.status(201).json({ success: true, message: 'Tạo tour thành công!', data: savedTour });
@@ -92,13 +95,13 @@ const getTourById = async (req, res) => {
   }
 };
 
-// 4. [PUT] /api/tours/:id - Cập nhật thông tin tour (CHỈ ADMIN MỚI ĐƯỢC SỬA)
+// 4. [PUT] /api/tours/:id - Cập nhật thông tin tour (Admin hoặc Staff)
 const updateTour = async (req, res) => {
   const id = req.params.id;
   try {
     // --- CHỐT CHẶN BẢO MẬT ---
-    if (req.user && req.user.role !== 'admin') {
-      return res.status(403).json({ success: false, message: 'Từ chối truy cập: Chỉ Admin mới có quyền Sửa Tour!' });
+    if (req.user && req.user.role !== 'admin' && req.user.role !== 'staff') {
+      return res.status(403).json({ success: false, message: 'Từ chối truy cập: Chỉ Admin hoặc Staff mới có quyền Sửa Tour!' });
     }
 
     const { title, price, duration, availableSeats } = req.body;

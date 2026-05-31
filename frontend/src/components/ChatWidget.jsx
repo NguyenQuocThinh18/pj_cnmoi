@@ -196,15 +196,7 @@ function ChatWidget() {
                   </div>
                 </button>
 
-                {/* NÚT AI */}
-                <button className="btn btn-warning text-dark rounded-pill fw-bold shadow-sm py-2 text-start px-4 d-flex align-items-center hover-scale" onClick={startAiChat}>
-                  <i className="bi bi-robot fs-4 me-3"></i> 
-                  <div>
-                    <div className="lh-1 mb-1">Chat với AI</div>
-                    <small className="fw-normal" style={{fontSize: '11px'}}>Trợ lý ảo 24/7</small>
-                  </div>
-                </button>
-
+                {/* NÚT AI đã ẩn theo yêu cầu */}
                 <div className="text-center text-muted my-1 small">-- hoặc truy cập nhanh --</div>
                 <button className="btn btn-outline-secondary rounded-pill text-start px-4 small" onClick={() => handleMenuClick('/tour-trong-nuoc')}>
                   🌍 Xem danh sách Tour

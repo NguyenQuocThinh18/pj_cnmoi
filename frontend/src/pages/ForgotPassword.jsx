@@ -3,16 +3,22 @@ import { Link } from 'react-router-dom';
 
 function ForgotPassword() {
   const [email, setEmail] = useState('');
-  const [status, setStatus] = useState(''); // 'loading', 'success', 'error'
+  const [status, setStatus] = useState(''); // 'loading', 'success'
+  const [message, setMessage] = useState('');
+
+  const simulateForgotPassword = () => {
+    setStatus('success');
+    setMessage(`Môi trường giả lập: Yêu cầu khôi phục mật khẩu đã được gửi đến ${email}. Bạn có thể xem thông báo này như một bước xác nhận khôi phục mật khẩu.`);
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     setStatus('loading');
-    
-    // Giả lập gọi API gửi email khôi phục (2 giây)
+    setMessage('');
+
     setTimeout(() => {
-      setStatus('success');
-    }, 2000);
+      simulateForgotPassword();
+    }, 500);
   };
 
   return (
@@ -51,6 +57,9 @@ function ForgotPassword() {
                       {status === 'loading' ? <span className="spinner-border spinner-border-sm me-2"></span> : <i className="bi bi-envelope-paper-fill me-2"></i>}
                       GỬI YÊU CẦU
                     </button>
+                    <div className="text-center mt-3 small text-muted">
+                      Đã chuyển sang chế độ giả lập: bấm là có phản hồi, không cần kết nối backend.
+                    </div>
                     <div className="text-center mt-4">
                       <Link to="/login" className="text-muted text-decoration-none fw-bold hover-info"><i className="bi bi-arrow-left me-1"></i> Trở về</Link>
                     </div>

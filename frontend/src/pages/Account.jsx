@@ -64,6 +64,11 @@ function Account() {
   // ====================================================================
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
+    const phonePattern = /^\+?[\d\s\-]{9,15}$/;
+    if (!phonePattern.test(editForm.phone.trim())) {
+      return Swal.fire('Lỗi', 'Số điện thoại không hợp lệ. Vui lòng nhập từ 9 đến 15 chữ số.', 'error');
+    }
+
     try {
       const res = await axios.put(`${API_BASE_URL}/api/users/${user._id}/profile`, editForm, getAuthHeaders());
       if (res.data.success) {
