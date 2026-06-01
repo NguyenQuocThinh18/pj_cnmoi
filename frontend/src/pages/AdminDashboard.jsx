@@ -154,10 +154,20 @@ function AdminDashboard() {
     setLoading(true);
     try {
       const cfg = getAuthHeaders();
+      const isAdmin = (() => {
+        try {
+          const t = localStorage.getItem('token');
+          if (!t) return false;
+          const payload = JSON.parse(atob(t.split('.')[1]));
+          return payload && payload.role === 'admin';
+        } catch (e) {
+          return false;
+        }
+      })();
       const [tourRes, bookRes, userRes, blogRes, reviewRes, catRes, rentalRes, carRes] = await Promise.all([
         axios.get(`${API_BASE_URL}/api/tours`),
         axios.get(`${API_BASE_URL}/api/bookings`),
-        axios.get(`${API_BASE_URL}/api/users`, cfg).catch(() => ({ data: { success: true, data: [] } })),
+        (isAdmin ? axios.get(`${API_BASE_URL}/api/users`, cfg).catch(() => ({ data: { success: true, data: [] } })) : Promise.resolve({ data: { success: true, data: [] } })),
         axios.get(`${API_BASE_URL}/api/blogs`),
         axios.get(`${API_BASE_URL}/api/reviews/all`).catch(() => ({ data: { success: true, data: [] } })),
         axios.get(`${API_BASE_URL}/api/categories`).catch(() => ({ data: { success: true, data: [] } })),
