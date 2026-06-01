@@ -24,13 +24,27 @@ export const registerServiceWorker = async () => {
   }
 
   try {
-    const swUrl = new URL('/notification-sw.js', window.location.origin).toString();
+    const existingRegistration = await navigator.serviceWorker.getRegistration();
+    if (existingRegistration) {
+      console.log('Sử dụng Service Worker hiện có:', existingRegistration);
+      try {
+        await existingRegistration.update();
+        console.log('Service Worker đã được cập nhật');
+      } catch (updateError) {
+        console.warn('Không thể cập nhật service worker hiện có:', updateError);
+      }
+      await navigator.serviceWorker.ready;
+      return existingRegistration;
+    }
 
-    // Đăng ký notification service worker
+    const swUrl = new URL('/sw.js', window.location.origin).toString();
+
+    // Đăng ký service worker chính của PWA
     const registration = await navigator.serviceWorker.register(swUrl, {
       scope: '/'
     });
 
+    await navigator.serviceWorker.ready;
     console.log('Service Worker đã được đăng ký:', registration);
     return registration;
   } catch (error) {

@@ -16,6 +16,11 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate', // Tự động cập nhật app khi có code mới
+      strategies: 'injectManifest',
+      filename: 'sw.js',
+      injectManifest: {
+        swSrc: 'sw.js'
+      },
       includeAssets: ['favicon.png'], // Mang theo file icon
       
       // THÊM ĐOẠN NÀY: ÉP HIỆN NÚT CÀI ĐẶT APP TRONG LÚC ĐANG CODE (npm run dev)

@@ -124,13 +124,14 @@ const sendNotificationToAll = async (payload) => {
 const sendNewTourNotification = async (tourData) => {
   const payload = {
     title: '🎉 Có tour mới!',
-    body: `${tourData.title} - Giá: ${tourData.price.toLocaleString('vi-VN')}₫`,
+    body: `${tourData.title} - Giá: ${Number(tourData.price).toLocaleString('vi-VN')}₫`,
     icon: tourData.image || '/icon-192x192.png',
+    image: tourData.image || '/icon-192x192.png',
     badge: '/badge-72x72.png',
     tag: `tour-${tourData._id}`,
     data: {
       tourId: tourData._id,
-      url: `/TourDetails?id=${tourData._id}`,
+      url: `/tours/id/${tourData._id}`,
       timestamp: new Date().toISOString()
     }
   };
