@@ -6,15 +6,17 @@
 
 // Event khi nhận được push notification
 self.addEventListener('push', (event) => {
-  console.log('Push notification nhận được:', event);
+  console.log('🔔 Push event nhận được:', event);
 
   if (!event.data) {
-    console.log('Push notification không có data');
+    console.log('⚠️ Push notification không có data');
     return;
   }
 
   try {
     const payload = event.data.json();
+    console.log('📦 Payload từ server:', payload);
+    
     const options = {
       body: payload.body,
       icon: payload.icon || '/icon-192x192.png',
@@ -34,17 +36,20 @@ self.addEventListener('push', (event) => {
       ]
     };
 
+    console.log('📢 Gọi showNotification với:', { title: payload.title, options });
     event.waitUntil(
       self.registration.showNotification(payload.title, options)
+        .then(() => console.log('✅ showNotification thành công'))
+        .catch(err => console.error('❌ showNotification thất bại:', err))
     );
   } catch (error) {
-    console.error('Lỗi xử lý push notification:', error);
+    console.error('❌ Lỗi xử lý push notification:', error);
   }
 });
 
 // Event khi user click vào notification
 self.addEventListener('notificationclick', (event) => {
-  console.log('Notification clicked:', event);
+  console.log('👆 Notification clicked:', event);
 
   event.notification.close();
 
@@ -77,5 +82,5 @@ self.addEventListener('notificationclick', (event) => {
 
 // Event khi user close notification
 self.addEventListener('notificationclose', (event) => {
-  console.log('Notification closed:', event);
+  console.log('❌ Notification closed:', event);
 });

@@ -28,9 +28,9 @@ router.post('/unsubscribe', unsubscribe);
 // 4. Kiểm tra phiên bản app
 router.get('/version-check', checkAppVersion);
 
-// Route admin - cần xác thực
-// 5. Gửi test notification (chỉ admin)
-router.post('/test', verifyAdminOrStaff, sendTestNotification);
+// Route public - cho phép test notification mà không cần auth
+// 5. Gửi test notification (public để dễ debug)
+router.post('/test', sendTestNotification);
 
 // 6. Lấy thống kê subscribers (chỉ admin)
 router.get('/stats', verifyAdminOrStaff, getStats);
