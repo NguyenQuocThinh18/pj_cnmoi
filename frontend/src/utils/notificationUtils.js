@@ -24,11 +24,12 @@ export const registerServiceWorker = async () => {
   }
 
   try {
+    const swUrl = new URL('/notification-sw.js', window.location.origin).toString();
+
     // Đăng ký notification service worker
-    const registration = await navigator.serviceWorker.register(
-      '/notification-sw.js',
-      { scope: '/' }
-    );
+    const registration = await navigator.serviceWorker.register(swUrl, {
+      scope: '/'
+    });
 
     console.log('Service Worker đã được đăng ký:', registration);
     return registration;
@@ -85,10 +86,24 @@ export const subscribeToPushNotifications = async () => {
     return null;
   }
 
-  try {
-    const registration = await navigator.serviceWorker.ready;
-    const vapidPublicKey = await getVapidPublicKey();
+  if ('Notification' in window && Notification.permission === 'denied') {
+    throw new Error('Bạn đã chặn thông báo. Vui lòng bật lại trong cài đặt trình duyệt.');
+  }
 
+  try {
+    if ('Notification' in window && Notification.permission !== 'granted') {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        throw new Error('Bạn cần cho phép thông báo để đăng ký.');
+      }
+    }
+
+    const registration = await registerServiceWorker();
+    if (!registration) {
+      throw new Error('Không thể đăng ký service worker. Vui lòng thử lại sau.');
+    }
+
+    const vapidPublicKey = await getVapidPublicKey();
     if (!vapidPublicKey) {
       throw new Error('Không thể lấy VAPID key');
     }
@@ -107,13 +122,16 @@ export const subscribeToPushNotifications = async () => {
     });
 
     // Gửi subscription lên server
-    await savePushSubscription(subscription);
+    const saved = await savePushSubscription(subscription);
+    if (!saved || !saved.success) {
+      throw new Error('Không thể lưu thông tin đăng ký lên server');
+    }
 
     console.log('Push notification subscription thành công');
     return subscription;
   } catch (error) {
     console.error('Lỗi subscribe push notifications:', error);
-    return null;
+    throw error;
   }
 };
 
