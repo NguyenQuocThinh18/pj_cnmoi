@@ -124,7 +124,7 @@ function Account() {
   return (
     <div className="bg-light min-vh-100 py-5">
       <style dangerouslySetInnerHTML={{ __html: `
-        .profile-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 9999; display: flex; justify-content: center; align-items: center; backdrop-filter: blur(3px); }
+        .profile-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1050; display: flex; justify-content: center; align-items: center; backdrop-filter: blur(3px); }
         .profile-modal-box { background: white; width: 90%; max-width: 450px; border-radius: 20px; padding: 30px; box-shadow: 0 20px 40px rgba(0,0,0,0.2); animation: popIn 0.3s ease-out forwards; position: relative; }
         @keyframes popIn { from { opacity: 0; transform: scale(0.9) translateY(20px); } to { opacity: 1; transform: scale(1) translateY(0); } }
         .profile-modal-close { position: absolute; top: 15px; right: 20px; background: none; border: none; font-size: 24px; color: #6c757d; cursor: pointer; transition: 0.2s; }

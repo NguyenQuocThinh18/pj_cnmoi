@@ -19,7 +19,7 @@ export default defineConfig({
       strategies: 'injectManifest',
       filename: 'sw.js',
       injectManifest: {
-        swSrc: 'sw.js'
+        swSrc: 'public/sw.js'
       },
       includeAssets: ['favicon.png'], // Mang theo file icon
       
