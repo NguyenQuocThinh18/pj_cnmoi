@@ -74,8 +74,9 @@ const sendNotificationToSubscription = async (subscription, payload) => {
         { endpoint: subscription.endpoint },
         { isActive: false }
       );
+      console.error('Subscription không còn hợp lệ, đã tắt isActive:', subscription.endpoint);
     }
-    console.error('Lỗi khi gửi notification:', error.message);
+    console.error('Lỗi khi gửi notification tới endpoint:', subscription.endpoint, error.statusCode, error.message);
     return false;
   }
 };

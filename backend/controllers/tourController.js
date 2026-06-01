@@ -44,12 +44,13 @@ const createTour = async (req, res) => {
     
     // 🔔 Gửi push notification về tour mới
     try {
-      await notificationService.sendNewTourNotification({
+      const notificationResult = await notificationService.sendNewTourNotification({
         _id: savedTour._id,
         title: savedTour.title,
         price: savedTour.price,
         image: savedTour.image
       });
+      console.log('Kết quả gửi notification tour mới:', notificationResult);
     } catch (notificationError) {
       console.error('Lỗi gửi notification tour mới:', notificationError);
       // Không throw error, vẫn trả về tour đã tạo
