@@ -149,14 +149,15 @@ const deleteTour = async (req, res) => {
   const id = req.params.id;
   try {
     // --- CHỐT CHẶN BẢO MẬT ---
-    if (req.user && req.user.role !== 'admin') {
-      return res.status(403).json({ success: false, message: 'Từ chối truy cập: Chỉ Admin mới có quyền Xóa Tour!' });
+    if (req.user && req.user.role !== 'admin' && req.user.role !== 'staff') {
+      return res.status(403).json({ success: false, message: 'Từ chối truy cập: Chỉ Admin hoặc Staff mới có quyền Xóa Tour!' });
     }
 
     await Tour.findByIdAndDelete(id);
     res.status(200).json({ success: true, message: "Đã xóa tour thành công!" });
   } catch (err) {
-    res.status(500).json({ success: false, message: "Lỗi khi xóa tour" });
+    console.error('Lỗi khi xóa tour:', err);
+    res.status(500).json({ success: false, message: "Lỗi khi xóa tour", error: err.message });
   }
 };
 
