@@ -1,0 +1,29 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Loading…</title>
+    <meta http-equiv="refresh" content="0;url=/" />
+    <script>
+      // Best-effort: fetch index.html and render it while preserving current URL
+      (function(){
+        if (location.pathname === '/' || location.pathname === '/index.html') return;
+        try {
+          fetch('/index.html').then(function(r){
+            if (!r.ok) return;
+            return r.text();
+          }).then(function(html){
+            if (!html) return;
+            document.open();
+            document.write(html);
+            document.close();
+          }).catch(function(){ /* ignore */ });
+        } catch(e){}
+      })();
+    </script>
+  </head>
+  <body>
+    Redirecting...
+  </body>
+</html>
