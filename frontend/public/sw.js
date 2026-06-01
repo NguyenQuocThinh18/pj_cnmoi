@@ -26,9 +26,9 @@ self.addEventListener('push', (event) => {
 
     const options = {
       body: payload.body,
-      icon: payload.icon || '/icon-192x192.png',
-      badge: payload.badge || '/badge-72x72.png',
-      image: payload.image || payload.icon || '/icon-192x192.png',
+      icon: payload.icon || '/assets/img/icon/favicon.png',
+      badge: payload.badge || '/assets/img/icon/favicon.png',
+      image: payload.image || payload.icon || '/assets/img/icon/favicon.png',
       vibrate: payload.vibrate || [100, 50, 100],
       renotify: true,
       tag: payload.tag || 'notification',

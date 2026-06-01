@@ -27,8 +27,8 @@ self.addEventListener('push', (event) => {
 
     const options = {
       body: payload.body,
-      icon: payload.icon || '/icon-192x192.png',
-      badge: payload.badge || '/badge-72x72.png',
+      icon: payload.icon || '/assets/img/icon/favicon.png',
+      badge: payload.badge || '/assets/img/icon/favicon.png',
       tag: payload.tag || 'notification',
       data: payload.data || {},
       requireInteraction: payload.data?.isRequired || false,

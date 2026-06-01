@@ -114,8 +114,8 @@ const sendTestNotification = async (req, res) => {
     const payload = {
       title: title || '🎉 Test Notification',
       body: body || 'Đây là thông báo test từ hệ thống',
-      icon: icon || '/icon-192x192.png',
-      badge: '/badge-72x72.png',
+      icon: icon || '/assets/img/icon/favicon.png',
+      badge: '/assets/img/icon/favicon.png',
       tag: 'test-notification',
       data: {
         url: '/',

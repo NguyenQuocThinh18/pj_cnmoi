@@ -125,9 +125,9 @@ const sendNewTourNotification = async (tourData) => {
   const payload = {
     title: '🎉 Có tour mới!',
     body: `${tourData.title} - Giá: ${Number(tourData.price).toLocaleString('vi-VN')}₫`,
-    icon: tourData.image || '/icon-192x192.png',
-    image: tourData.image || '/icon-192x192.png',
-    badge: '/badge-72x72.png',
+    icon: tourData.image || '/assets/img/icon/favicon.png',
+    image: tourData.image || '/assets/img/icon/favicon.png',
+    badge: '/assets/img/icon/favicon.png',
     tag: `tour-${tourData._id}`,
     data: {
       tourId: tourData._id,
@@ -146,8 +146,8 @@ const sendAppUpdateNotification = async (versionData) => {
   const payload = {
     title: '📱 Có phiên bản mới!',
     body: `Ứng dụng cần cập nhật. ${versionData.description || ''}`,
-    icon: '/icon-192x192.png',
-    badge: '/badge-72x72.png',
+    icon: '/assets/img/icon/favicon.png',
+    badge: '/assets/img/icon/favicon.png',
     tag: 'app-update',
     data: {
       version: versionData.version,
