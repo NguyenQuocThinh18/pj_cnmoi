@@ -121,12 +121,22 @@ const sendNotificationToAll = async (payload) => {
 /**
  * Gửi notification khi có tour mới
  */
+const isDataUrl = (value) => typeof value === 'string' && /^data:/i.test(value);
+const getSafeNotificationImage = (image) => {
+  if (!image || isDataUrl(image)) {
+    return '/assets/img/icon/favicon.png';
+  }
+  return image;
+};
+
 const sendNewTourNotification = async (tourData) => {
+  const safeImage = getSafeNotificationImage(tourData.image);
+
   const payload = {
     title: '🎉 Có tour mới!',
     body: `${tourData.title} - Giá: ${Number(tourData.price).toLocaleString('vi-VN')}₫`,
-    icon: tourData.image || '/assets/img/icon/favicon.png',
-    image: tourData.image || '/assets/img/icon/favicon.png',
+    icon: '/assets/img/icon/favicon.png',
+    image: safeImage,
     badge: '/assets/img/icon/favicon.png',
     tag: `tour-${tourData._id}`,
     data: {
