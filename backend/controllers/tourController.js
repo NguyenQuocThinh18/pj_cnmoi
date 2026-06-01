@@ -42,9 +42,10 @@ const createTour = async (req, res) => {
     });
     const savedTour = await newTour.save();
     
-    // 🔔 Gửi push notification về tour mới
+    // 🔔 Gửi push notification về tour mới (ghi nhận kết quả để debug)
+    let notificationResult = null;
     try {
-      const notificationResult = await notificationService.sendNewTourNotification({
+      notificationResult = await notificationService.sendNewTourNotification({
         _id: savedTour._id,
         title: savedTour.title,
         price: savedTour.price,
@@ -55,8 +56,9 @@ const createTour = async (req, res) => {
       console.error('Lỗi gửi notification tour mới:', notificationError);
       // Không throw error, vẫn trả về tour đã tạo
     }
-    
-    res.status(201).json({ success: true, message: 'Tạo tour thành công!', data: savedTour });
+
+    // Trả về thêm trường `notification` để client có thể thấy kết quả gửi (debug)
+    res.status(201).json({ success: true, message: 'Tạo tour thành công!', data: savedTour, notification: notificationResult });
   } catch (error) {
     if (error.code === 11000) return res.status(400).json({ success: false, message: 'Tên tour đã tồn tại!' });
     res.status(500).json({ success: false, message: 'Lỗi khi tạo tour', error: error.message });
