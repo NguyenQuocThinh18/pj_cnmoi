@@ -6,7 +6,8 @@
 
 const Tour = require('../models/Tour');
 const Booking = require('../models/Booking'); // Dùng để tính toán số ghế
-const slugify = require('slugify'); 
+const slugify = require('slugify');
+const notificationService = require('../services/notificationService'); // Gửi push notifications 
 
 // 1. [POST] /api/tours - Tạo tour mới (Admin hoặc Staff)
 const createTour = async (req, res) => {
@@ -40,6 +41,19 @@ const createTour = async (req, res) => {
       image: finalImage
     });
     const savedTour = await newTour.save();
+    
+    // 🔔 Gửi push notification về tour mới
+    try {
+      await notificationService.sendNewTourNotification({
+        _id: savedTour._id,
+        title: savedTour.title,
+        price: savedTour.price,
+        image: savedTour.image
+      });
+    } catch (notificationError) {
+      console.error('Lỗi gửi notification tour mới:', notificationError);
+      // Không throw error, vẫn trả về tour đã tạo
+    }
     
     res.status(201).json({ success: true, message: 'Tạo tour thành công!', data: savedTour });
   } catch (error) {

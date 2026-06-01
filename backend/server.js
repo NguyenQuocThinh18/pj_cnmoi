@@ -28,6 +28,8 @@ const userRoutes = require('./routes/userRoutes');
 const rentalRoutes = require('./routes/rentalRoutes');
 const carRoutes = require('./routes/carRoutes'); // 👈 Route Quản lý Kho Xe
 const paymentRoutes = require('./routes/paymentRoutes'); // 👈 Route Thanh toán VNPay / Chuyển khoản tự động
+const notificationRoutes = require('./routes/notificationRoutes'); // 👈 Route Push Notifications
+const versionRoutes = require('./routes/versionRoutes'); // 👈 Route Quản lý Version App
 
 dotenv.config({ path: './.env' });
 connectDB();
@@ -62,6 +64,8 @@ app.use('/api/users', userRoutes);
 app.use('/api/rentals', rentalRoutes);
 app.use('/api/cars', carRoutes); // 👈 Kích hoạt API Kho Xe
 app.use('/api/payment', paymentRoutes); // 👈 Kích hoạt API Thanh toán
+app.use('/api/notifications', notificationRoutes); // 👈 Kích hoạt API Push Notifications
+app.use('/api/versions', versionRoutes); // 👈 Kích hoạt API Quản lý Version
 
 // =====================================================================
 // 🤖 API: TRỢ LÝ AI TƯ VẤN DU LỊCH (GEMINI)

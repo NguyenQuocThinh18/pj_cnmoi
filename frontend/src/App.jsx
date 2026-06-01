@@ -9,7 +9,9 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Navbar from './components/Navbar'; 
 import Footer from './components/Footer'; 
 import ProtectedRoute from './components/ProtectedRoute'; 
-import ChatWidget from './components/ChatWidget'; 
+import ChatWidget from './components/ChatWidget';
+import AppUpdateNotification from './components/AppUpdateNotification';
+import NotificationPermission from './components/NotificationPermission'; 
 
 const Home = lazy(() => import('./pages/Home'));
 const Login = lazy(() => import('./pages/Login'));
@@ -36,7 +38,9 @@ function App() {
   return (
     <Router>
       <div className="min-vh-100 d-flex flex-column bg-light">
+        <AppUpdateNotification />
         <Navbar />
+        <NotificationPermission />
 
         <main className="flex-grow-1">
           <Suspense fallback={
